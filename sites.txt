@@ -1,0 +1,6 @@
+Aplicar rotación:
+https://en.wikipedia.org/wiki/Rotation_matrix
+https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.html
+
+Rotar imagen a pelo (como si fuera un plano):
+https://docs.opencv.org/4.x/da/d6e/tutorial_py_geometric_transformations.html
