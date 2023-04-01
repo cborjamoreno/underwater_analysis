@@ -123,8 +123,8 @@ def main(args):
         # Cutting depth
         # for x in range(0, rows):
         #     for y in range(0, cols):
-        #         if depth[x,y] > 0.9:
-        #             depth[x,y] = 0.9
+        #         if depth[x,y] > 0.6:
+        #             depth[x,y] = 0.6
 
         fig = plt.figure(figsize=(15, 10))
         ax = plt.axes(projection="3d")
@@ -190,8 +190,6 @@ def main(args):
 
         if args.reprojection:
             
-            print('hola')
-    
             reprojection = points_to_image_torch(point_array_rescaled[:, 0].astype(int),
                                                  point_array_rescaled[:, 1].astype(int),
                                                  point_array_rescaled[:, 2], (rows,cols))
