@@ -12,7 +12,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import cv2
 
-img = cv2.imread('monoUWNet/samples/00032677.tiff')
+sample = '00034302'
+
+img = cv2.imread('monoUWNet/samples/'+sample+'.tiff')
 
 hsv_image= cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
@@ -20,7 +22,7 @@ height,width,channels = hsv_image.shape
 num_iterations = 500
 prior = 5
 double_step = True 
-num_superpixels = 300
+num_superpixels = 800
 num_levels = 20
 num_histogram_bins = 5
 
@@ -47,7 +49,7 @@ result = cv2.add(result_bg, result_fg)
 output = np.zeros_like(img)
 
 # Define HSV blue range
-lower_blue = np.array([97,0,70])
+lower_blue = np.array([97,170,70])
 upper_blue= np.array([130,255,255])
 
 # Define HSV white range
@@ -68,11 +70,13 @@ for i in range(num_superpixels):
         output[mask] = dark_blue
 
 
-cv2.imshow('results', result)
+cv2.imshow('superpixels', result)
 cv2.waitKey(0)
+cv2.imwrite('results/segmentation/superpixel_'+sample+'.png', result)
 # Show image
 cv2.imshow('Superpixel segmentation', output)
 cv2.waitKey(0)
+cv2.imwrite('results/segmentation/segmentation_'+sample+'.png', output)
 cv2.destroyAllWindows()
 
 
