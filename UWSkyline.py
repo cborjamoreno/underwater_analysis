@@ -63,12 +63,54 @@ def getUWSkyline(points):
     
     for i in range(nrows):
         for j in range(ncols):
-            if points[i,j] > 0.6:
+            if points[i,j] > 0.55:
                 img[i,j] = light_purple
             else:
                 img[i,j] = dark_blue
     
     return img
+
+def applyMask(mask, points):
+    """Apply skyline mask to pointcloud
+
+    Parameters
+    ----------
+    mask : array_like, shape (nrows, ncols, 3)
+        Image that represent de skyline mask
+    points : array_like, shape (N,3)
+        Array containing the set of points in space
+
+    Returns
+    -------
+    
+
+    """
+    
+    light_purple = (213, 184, 255)
+    dark_blue = (1, 1, 122)
+    
+    nrows,ncols = points.shape
+    
+    points_mask = points.copy()
+    
+    for i in range(nrows):
+        for j in range(ncols):
+            if mask[i,j,:].tolist() == list(light_purple):
+                points_mask[i,j] = 0.7
+                
+                
+    point_array = np.ndarray(shape=(nrows*ncols,3))
+    
+    i = 0
+    for x in range(0, nrows):
+        for y in range(0, ncols):
+            point_array[i] = [x,y,points_mask[x,y]]
+            i += 1
+    
+    
+    
+    return point_array
+                
 
 
 
@@ -103,23 +145,58 @@ def main(args):
         
         depth_load = np.load(path)
         depth = depth_load[0][0]
+        
+        fig = plt.figure(figsize=plt.figaspect(0.5))
+        
+        mask = getUWSkyline(depth)
+        pc_mask = applyMask(mask, depth)
+        
+        sample = os.path.splitext(path)
+        sample = os.path.splitext(sample[0])
+        sample = (sample[0].split('/'))[2]
+        
+        # =============
+        # First subplot
+        # =============
+        # set up the axes for the first plot
+        ax = fig.add_subplot(1, 2, 1)
+        ax.imshow(mask)
+        
+        # ==============
+        # Second subplot
+        # ==============
+        # set up the axes for the second plot
+        ax = fig.add_subplot(1, 2, 2, projection='3d')
+        
+        c=pc_mask[:, 2],
+        cmap="jet_r"
+        
+        ax.scatter(
+            pc_mask[:, 1],
+            pc_mask[:, 2],
+            pc_mask[:, 0],
+            s=0.03,
+            c=c,
+            cmap=cmap
+        )
+        ax.view_init(0,270)
+        ax.dist = 7
 
-        # Cutting y
-        # depth = depth[200:,:]
 
-        # Cutting depth
-        # for x in range(0, rows):
-        #     for y in range(0, cols):
-        #         if depth[x,y] > 0.6:
-        #             depth[x,y] = 0.6
-        
-        fig = plt.figure(figsize=(15, 10))
-        
-        img = getUWSkyline(depth)
-        
-        plt.imshow(img)
+        ax.invert_zaxis()
+        # fig.suptitle(sample)
         plt.show()
+        
+        
+        
+    
+        if args.output_path:
+            fig.savefig(out_path+sample+"_skyline.png", bbox_inches='tight')
 
+    # fig = plt.figure(figsize=(15, 10))
+    # ax = plt.axes(projection="3d")
+    
+    # point_array = np.ndarray(shape=(rows*cols,3))
         
        
     

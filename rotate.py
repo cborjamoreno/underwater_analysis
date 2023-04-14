@@ -116,15 +116,15 @@ def main(args):
         depth = depth_load[0][0]
 
         # Cutting y
-        depth = depth[200:,:]
+        # depth = depth[200:,:]
 
         rows,cols = depth.shape
 
         # Cutting depth
-        # for x in range(0, rows):
-        #     for y in range(0, cols):
-        #         if depth[x,y] > 0.6:
-        #             depth[x,y] = 0.6
+        for x in range(0, rows):
+            for y in range(0, cols):
+                if depth[x,y] > 0.55:
+                    depth[x,y] = 0.7
 
         fig = plt.figure(figsize=(15, 10))
         ax = plt.axes(projection="3d")
