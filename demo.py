@@ -7,8 +7,7 @@ demo.py: Este script hace una segmentación de la masa de agua de la imagen pasa
 
 import argparse
 
-from Depth.depth_estimation import *
-from Depth.pointcloud import *
+from DepthEstimation.depth_estimation import *
 from Segmentation.segmentation import *
 
 def parse_args():
