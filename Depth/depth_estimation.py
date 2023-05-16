@@ -14,9 +14,9 @@ import matplotlib.cm as cm
 import torch
 
 from torchvision import transforms
-from . import networks
-from .layers import disp_to_depth
-from .my_utils import *
+from .monoUWNet import networks
+from .monoUWNet.layers import disp_to_depth
+from .monoUWNet.my_utils import *
 
 def estimate(image_path):
     """ Function to estimate depth for a single image
@@ -39,9 +39,9 @@ def estimate(image_path):
     else:
         device = "cpu"
 
-    model_folder = 'DepthEstimation/monoUWNet/20220908_FLC_all_wo_rhf_FLC_4DS_tiny_sky/models/weights_last'
+    model_folder = 'Depth/monoUWNet/20220908_FLC_all_wo_rhf_FLC_4DS_tiny_sky/models/weights_last'
 
-    print("-> Loading model from",model_folder)
+    print("   Loading model from",model_folder)
     encoder_path = os.path.join(model_folder, "encoder.pth")
     depth_decoder_path = os.path.join(model_folder, "depth.pth")
 
@@ -91,8 +91,6 @@ def estimate(image_path):
         disp = outputs[("disp", 0)]
         # Saving numpy file
         _ , depth = disp_to_depth(disp, 0.1, 100)
-        
-        print('-> Done!')
         
         return depth[0,0].squeeze().cpu().numpy()
 

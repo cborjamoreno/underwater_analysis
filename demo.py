@@ -7,8 +7,9 @@ demo.py: Este script hace una segmentación de la masa de agua de la imagen pasa
 
 import argparse
 
-from DepthEstimation.monoUWNet.depth_estimation import estimate, showColorMap
-from Segmentation.segmentation import segmentationSAM, showSegmentations, binarySegmentationSuperpixels
+from Depth.depth_estimation import *
+from Depth.pointcloud import *
+from Segmentation.segmentation import *
 
 def parse_args():
     """
@@ -22,22 +23,46 @@ def parse_args():
     parser.add_argument('-p', '--path', type=str,
                         help='Input image path', required=True)
     parser.add_argument('--pc_color', 
-                        help='Point cloud colors.', choices=['depth', 'binary', 'objects'], default='objects')
+                        help='Point cloud colors.', choices=['DEPTH', 'BINARY', 'OBJECTS'], default='OBJECTS')
     parser.add_argument('-eval', '--evalPath', type=str,
-                        help='Labeled image path')
+                        help='Evaluation segmented mask path. Water pixels must be labeled as RGB (0,0,0) in mask located in \'evalPath\'.')
     
     return parser.parse_args()
 
 def main(args):
     image_path = args.path
 
+    print('Estimating depth for image:'+image_path+'...')
     depth = estimate(image_path)
+    print('-> Done!\n')
+
+    print('Showing colormap estimation...')
     # showColorMap(depth)
+    print('-> Done!\n')
 
+    print('Generating binary and object segmentation...')
     binary_mask, color_mask = segmentationSAM(depth, image_path)
-    showSegmentations(binary_mask, depth, args.pc_color, color_mask)
+    print('-> Done!\n')
 
-    #TODO: evaluar con algoritmo de evaluacion
+    print('Showing segmentations...')
+    showSegmentation(depth, binary_mask, color_mask)
+    print('-> Done!\n')
+    
+    print('Showing 3D pointcloud with '+args.pc_color+' coloring type...')
+    # showPointcloud(depth, color_mask, args.pc_color)
+    print('-> Done!\n')
+
+    print('Showing overhead reproyection...')
+    showOverheadReproyection(binary_mask, depth)
+    print('-> Done!\n')
+
+    if args.evalPath:
+        print('Evaluating...')
+        TP, FP, TN, FN = evaluate(args.evalPath, binary_mask)
+
+        print('Precision =',TP/(TP+FP))
+        print('Recall =',TP/(TP+FN))
+        print('-> Done!\n')
 
 if __name__ == "__main__":
     args = parse_args()
