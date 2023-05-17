@@ -7,7 +7,8 @@ demo.py: Este script hace una segmentación de la masa de agua de la imagen pasa
 
 import argparse
 
-from DepthEstimation.depth_estimation import *
+from Module3D.depth_estimation import *
+from Module3D.pointcloud import *
 from Segmentation.segmentation import *
 
 def parse_args():
@@ -36,11 +37,11 @@ def main(args):
     print('-> Done!\n')
 
     print('Showing colormap estimation...')
-    # showColorMap(depth)
+    showColorMap(depth)
     print('-> Done!\n')
 
     print('Generating binary and object segmentation...')
-    binary_mask, color_mask = segmentationSAM(depth, image_path)
+    binary_mask, color_mask = segmentationFinal(depth, image_path)
     print('-> Done!\n')
 
     print('Showing segmentations...')
@@ -48,7 +49,7 @@ def main(args):
     print('-> Done!\n')
     
     print('Showing 3D pointcloud with '+args.pc_color+' coloring type...')
-    # showPointcloud(depth, color_mask, args.pc_color)
+    showPointcloud(depth, color_mask, args.pc_color)
     print('-> Done!\n')
 
     print('Showing overhead reproyection...')

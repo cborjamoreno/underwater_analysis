@@ -79,7 +79,38 @@ def binarySegmentationDepth(points):
 
 
 
-def segmentationSAM(depth, image_path):
+def segmentationSAM(img):
+    """Get the segmentation of an image with SAM
+
+    Parameters
+    ----------
+    img : array_like, shape (rows,cols,3)
+        Image to segment
+
+    Returns
+    -------
+    masks : list of masks
+        List of segmentation masks found by SAM in the image where each mask is a dictionary with the following fields:
+            - segmentation : the mask
+            - area : the area of the mask in pixels
+            - bbox : the boundary box of the mask in XYWH format
+            - predicted_iou : the model's own prediction for the quality of the mask
+            - point_coords : the sampled input point that generated this mask
+            - stability_score : an additional measure of mask quality
+            - crop_box : the crop of the image used to generate this mask in XYWH format
+    """
+
+    sam = sam_model_registry["vit_h"](checkpoint="vit_h.pth")
+    mask_generator = SamAutomaticMaskGenerator(
+        model=sam,
+        points_per_side=32
+    )
+    masks = mask_generator.generate(img)
+
+    return masks
+
+
+def segmentationFinal(depth, image_path):
     """Get the segmentation combining SAM with depth estimation. If possible, the function returns an object segmentation
 
     Parameters
@@ -143,15 +174,8 @@ def segmentationSAM(depth, image_path):
     water_percent = water/(nrows_img*ncols_img)
     
     # Get SAM segmentation
-    sam = sam_model_registry["vit_h"](checkpoint="vit_h.pth")
-    mask_generator = SamAutomaticMaskGenerator(
-        model=sam,
-        points_per_side=32
-    )
-    masks = mask_generator.generate(img)
+    masks = segmentationSAM(img)
     masks = sorted(masks, key=(lambda x: x['area']), reverse=True)
-    
-    #showSAM(img, masks)
     
     # Select biggest segment as water
     segment_areas = [sub['area'] for sub in masks]
