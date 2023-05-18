@@ -36,33 +36,37 @@ def main(args):
     depth = estimate(image_path)
     print('-> Done!\n')
 
-    print('Showing colormap estimation...')
-    showColorMap(depth)
-    print('-> Done!\n')
+    # print('Showing colormap estimation...')
+    # showColorMap(depth)
+    # print('-> Done!\n')
 
-    print('Generating binary and object segmentation...')
-    binary_mask, color_mask = segmentationFinal(depth, image_path)
-    print('-> Done!\n')
+    print('Showing 3D pointcloud')
+    # showPointcloud(depth)
+    showPointcloud(depth,rotation_axis='z',rotation_angle=-90)
 
-    print('Showing segmentations...')
-    showSegmentation(depth, binary_mask, color_mask)
-    print('-> Done!\n')
+    # print('Generating binary and object segmentation...')
+    # binary_mask, color_mask = segmentationFinal(depth, image_path)
+    # print('-> Done!\n')
+
+    # print('Showing segmentations...')
+    # showSegmentation(depth, binary_mask, color_mask)
+    # print('-> Done!\n')
     
-    print('Showing 3D pointcloud with '+args.pc_color+' coloring type...')
-    showPointcloud(depth, color_mask, args.pc_color)
-    print('-> Done!\n')
+    # print('Showing 3D pointcloud with '+args.pc_color+' coloring type...')
+    # showPointcloudWithMask(depth, color_mask, args.pc_color)
+    # print('-> Done!\n')
 
-    print('Showing overhead reproyection...')
-    showOverheadReproyection(binary_mask, depth)
-    print('-> Done!\n')
+    # print('Showing overhead reproyection...')
+    # showOverheadReproyection(binary_mask, depth)
+    # print('-> Done!\n')
 
-    if args.evalPath:
-        print('Evaluating...')
-        TP, FP, TN, FN = evaluate(args.evalPath, binary_mask)
+    # if args.evalPath:
+    #     print('Evaluating...')
+    #     TP, FP, TN, FN = evaluate(args.evalPath, binary_mask)
 
-        print('Precision =',TP/(TP+FP))
-        print('Recall =',TP/(TP+FN))
-        print('-> Done!\n')
+    #     print('Precision =',TP/(TP+FP))
+    #     print('Recall =',TP/(TP+FN))
+    #     print('-> Done!\n')
 
 if __name__ == "__main__":
     args = parse_args()

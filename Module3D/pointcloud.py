@@ -22,7 +22,7 @@ DARK_BLUE = (1, 1, 122)
 
 
 
-def rotatePoints(points, axis, angle, degrees=False):
+def rotatePoints(points, axis, angle, degrees=True):
     """Apply an specific angle rotation about an axis to a set of points.
 
     Parameters
@@ -36,8 +36,8 @@ def rotatePoints(points, axis, angle, degrees=False):
         Angle for rotation. Euler angle specified in radians
         ('degrees' isFalse) or degrees ('degrees' is True).
     degrees : bool, optional
-        If True, then the 'angle' is assumed to be in degrees.
-        Default is False.
+        If False, then the 'angle' is assumed to be in radians.
+        Default is True.
 
     Returns
     -------
@@ -106,8 +106,72 @@ def applyMask(mask, points, coloring):
     return point_array, colors
 
 
+def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True):
+    """Shows pointcloud from depth points applying rotation. 
 
-def showPointcloud(depth, mask, coloring):
+    Parameters
+    ----------
+    depth : array_like, shape (N,3)
+        Array containing the set of points in space
+    axis : string
+        Specifies the axis for rotation. Up to 3 characters belonging to the
+        set {'x', 'y', 'z'}.
+    angle : float
+        Angle for rotation. Euler angle specified in radians
+        ('degrees' is False) or degrees ('degrees' is True).
+    degrees : bool, optional
+        If False, then the 'angle' is assumed to be in radians.
+        Default is True.
+    """
+
+    nrows,ncols = depth.shape
+
+    # Plot pointcloud
+    fig = plt.figure().add_subplot(projection='3d')
+    fig.set_title('3D pointcloud')
+
+    point_array = np.ndarray(shape=(nrows*ncols,3))
+
+    i = 0
+    for x in range(0, nrows):
+        for y in range(0, ncols):
+            point_array[i] = [x,y,depth[x,y]]
+            i += 1
+
+    if rotation_angle != 0:
+        # Applying rotation
+        point_array = rotatePoints(point_array, rotation_axis, rotation_angle, degrees)
+        if rotation_axis == 'y':
+            c=point_array[:, 0],
+            cmap="jet"
+        elif rotation_axis == 'x':
+            c=point_array[:, 1],
+            cmap="jet_r"
+        else:
+            c=point_array[:, 2],
+            cmap="jet_r"
+    else:
+        c=point_array[:, 2],
+        cmap="jet_r"
+
+    fig.scatter(
+        point_array[:, 1],
+        point_array[:, 2],
+        point_array[:, 0],
+        s=0.03,
+        c=c,
+        cmap=cmap
+    )
+    fig.view_init(0,270)
+
+    fig.set_xlabel(" Y ")
+    fig.set_ylabel(" Z ")
+    fig.set_zlabel(" X ")
+
+    fig.invert_zaxis()
+    plt.show()
+
+def showPointcloudWithMask(depth, mask, coloring):
     """Shows pointcloud from depth points after apply the segmentation mask 'mask' to delete water points with the specify coloring type. 
 
     Parameters
