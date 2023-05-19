@@ -18,10 +18,6 @@ from scipy.spatial.transform import Rotation as R
 LIGHT_PURPLE = (213, 184, 255)
 DARK_BLUE = (1, 1, 122)
 
-
-
-
-
 def rotatePoints(points, axis, angle, degrees=True):
     """Apply an specific angle rotation about an axis to a set of points.
 
@@ -128,7 +124,7 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True):
 
     # Plot pointcloud
     fig = plt.figure().add_subplot(projection='3d')
-    fig.set_title('3D pointcloud')
+    # fig.set_title('3D pointcloud')
 
     point_array = np.ndarray(shape=(nrows*ncols,3))
 
@@ -146,7 +142,7 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True):
             cmap="jet"
         elif rotation_axis == 'x':
             c=point_array[:, 1],
-            cmap="jet_r"
+            cmap="jet"
         else:
             c=point_array[:, 2],
             cmap="jet_r"
@@ -158,7 +154,7 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True):
         point_array[:, 1],
         point_array[:, 2],
         point_array[:, 0],
-        s=0.03,
+        s=0.01,
         c=c,
         cmap=cmap
     )
@@ -232,7 +228,16 @@ def showPointcloudWithMask(depth, mask, coloring):
 
 
 
-def showOverheadReproyection(mask, depth):
+def showOverheadReproyection(depth, mask=None):
+    """Shows overhead reproyection of depth pointcloud 
+
+    Parameters
+    ----------
+    depth : array_like, shape (N,3)
+        Array containing the set of points in space
+    mask : array_like, shape (nrows, ncols, 3), optional
+        Segmentation mask
+    """
 
     def points_to_image_torch(xs, ys, zs, sensor_size=(192,640)):
         xt, yt, zt = torch.from_numpy(xs), torch.from_numpy(ys), torch.from_numpy(zs)
@@ -243,15 +248,28 @@ def showOverheadReproyection(mask, depth):
     
     nrows,ncols = depth.shape
 
-    # Resize mask
     nrows,ncols = depth.shape
-    mask_resized = cv2.resize(mask, (ncols,nrows), interpolation = cv2.INTER_AREA)
 
-    # Apply mask to pointcloud to delete water points
-    pc_mask, _ = applyMask(mask_resized, depth, 'depth')
+    if mask is not None:
+        # Resize mask
+        mask_resized = cv2.resize(mask, (ncols,nrows), interpolation = cv2.INTER_AREA)
+
+        # Apply mask to pointcloud to delete water points
+        pc_mask, _ = applyMask(mask_resized, depth, 'depth')
+        
+        pc_mask[:, 2] = pc_mask[:, 2]*nrows/np.max(pc_mask[:,2])
+        pc_mask = rotatePoints(pc_mask, axis='y', angle=-90, degrees=True)
     
-    pc_mask[:, 2] = pc_mask[:, 2]*nrows/np.max(pc_mask[:,2])
-    pc_mask = rotatePoints(pc_mask, axis='y', angle=-90, degrees=True)
+    else:
+        point_array_rescaled = np.ndarray(shape=(nrows*ncols,3))
+        depth_rescaled = np.copy(depth)
+        depth_rescaled[:,:] = (depth_rescaled[:,:]*nrows) / np.max(depth_rescaled)
+        i = 0
+        for x in range(0, nrows):
+            for y in range(0, ncols):
+                point_array_rescaled[i] = [x,y,depth_rescaled[x,y]]
+                i += 1
+        pc_mask = rotatePoints(point_array_rescaled, axis='y', angle=-90, degrees=True)
 
     reprojection = points_to_image_torch(pc_mask[:, 0].astype(int), pc_mask[:, 1].astype(int), pc_mask[:, 2], (nrows,ncols))
                     

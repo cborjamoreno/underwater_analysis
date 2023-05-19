@@ -41,8 +41,7 @@ def main(args):
     # print('-> Done!\n')
 
     print('Showing 3D pointcloud')
-    # showPointcloud(depth)
-    showPointcloud(depth,rotation_axis='z',rotation_angle=-90)
+    showPointcloud(depth,rotation_axis='y',rotation_angle=0)
 
     # print('Generating binary and object segmentation...')
     # binary_mask, color_mask = segmentationFinal(depth, image_path)
@@ -56,9 +55,9 @@ def main(args):
     # showPointcloudWithMask(depth, color_mask, args.pc_color)
     # print('-> Done!\n')
 
-    # print('Showing overhead reproyection...')
-    # showOverheadReproyection(binary_mask, depth)
-    # print('-> Done!\n')
+    print('Showing overhead reproyection...')
+    showOverheadReproyection(depth)
+    print('-> Done!\n')
 
     # if args.evalPath:
     #     print('Evaluating...')
