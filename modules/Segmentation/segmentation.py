@@ -9,9 +9,11 @@ import numpy as np
 import cv2
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import time
 
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
+from modules.Module3D.depth_estimation import estimate
 
 LIGHT_PURPLE = (213, 184, 255)
 DARK_BLUE = (1, 1, 122)
@@ -63,7 +65,6 @@ def binarySegmentationDepth(points):
         Image with the waterbody segmentation
 
     """
-
     nrows,ncols = points.shape
     
     img = np.zeros((nrows,ncols,3), dtype=np.int32)
@@ -76,6 +77,149 @@ def binarySegmentationDepth(points):
                 img[i,j] = DARK_BLUE
     
     return img
+
+def showBinarySegmentationDepth(image_path):
+    """Show waterbody segmentation using depth estimation
+
+    Parameters
+    ----------
+    image_path : str
+        Image path
+
+    Returns
+    -------
+    img : array_like,
+        Image with the waterbody segmentation
+
+    """
+
+    img = cv2.imread(image_path)
+    nrows,ncols,_ = img.shape
+
+    start = time.time()
+
+    # Estimate depth for image
+    points = estimate(image_path)
+
+    mask = binarySegmentationDepth(points).astype(np.uint8)
+
+    # Resize mask
+    mask_resized = cv2.resize(mask, (ncols,nrows), interpolation = cv2.INTER_AREA)
+
+    end = time.time()
+    print('Execution time:',end-start)
+
+    plt.imshow(mask_resized)
+
+    legend_data = [
+        [127,list(LIGHT_PURPLE),"agua"],
+        [126,list(DARK_BLUE),"escena"]
+    ]
+    handles = [
+        Rectangle((0,0),1,1, color = [v/255 for v in c]) for k,c,n in legend_data
+    ]
+    labels = [n for k,c,n in legend_data]
+
+
+    plt.grid(False)
+    plt.axis('off')
+    plt.legend(handles,labels)
+    plt.show()
+
+    # Show image
+    # cv2.imshow('Depth-based segmentation', cv2.cvtColor(mask_resized, cv2.COLOR_BGR2RGB))
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    
+    return mask_resized
+
+
+
+def floatingSegmentation(binary_mask):
+    """Get floating objects segmentation
+
+    Parameters
+    ----------
+    binary_mask : array_like
+        Image with binary segmentation.
+
+    Returns
+    -------
+    img : array_like,
+        Image with the floating objects segmentation
+
+    """
+    # Convert to gray scale
+    gray = cv2.cvtColor(binary_mask, cv2.COLOR_RGB2GRAY)
+
+    # Find Canny edges
+    edged = cv2.Canny(gray, 30, 200)
+
+    # Taking a matrix of size 5 as the kernel
+    kernel = np.ones((3, 3), np.uint8)
+    edged = cv2.dilate(edged, kernel, iterations=1)
+    
+    # Finding Contours
+    contours, hierarchy = cv2.findContours(edged, 
+        cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+    print(len(contours))
+    
+    result = binary_mask.copy()
+
+    for i in range(len(contours)):
+
+        # Calculate contour's area
+        area = cv2.contourArea(contours[i])
+
+        # Check if contour is closed
+        if hierarchy[0][i][2] > 0:
+
+            # Draw and fill contour 
+            cv2.drawContours(result, [contours[i]], 0, (0,128,90), -1)
+
+    return result
+
+def showFloatingSegmentation(binary_mask):
+    """Show floating objects segmentation
+
+    Parameters
+    ----------
+    binary_mask : array_like
+        Image with binary segmentation.
+
+    Returns
+    -------
+    img : array_like,
+        Image with the floating objects segmentation
+
+    """
+
+    result = floatingSegmentation(binary_mask)
+
+    plt.imshow(result)
+
+    legend_data = [
+        [127,list(LIGHT_PURPLE),"agua"],
+        [126,list(DARK_BLUE),"escena"],
+        [125,list([0,128,90]),"flotante"]
+    ]
+    handles = [
+        Rectangle((0,0),1,1, color = [v/255 for v in c]) for k,c,n in legend_data
+    ]
+    labels = [n for k,c,n in legend_data]
+
+
+    plt.grid(False)
+    plt.axis('off')
+    plt.legend(handles,labels)
+    plt.show()
+
+    # Show image
+    # cv2.imshow('Floating objects segmentation', cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    
+    return result
 
 
 
@@ -100,7 +244,7 @@ def segmentationSAM(img):
             - crop_box : the crop of the image used to generate this mask in XYWH format
     """
 
-    sam = sam_model_registry["vit_h"](checkpoint="vit_h.pth")
+    sam = sam_model_registry["vit_h"](checkpoint="modules/vit_h.pth")
     mask_generator = SamAutomaticMaskGenerator(
         model=sam,
         points_per_side=32
@@ -110,13 +254,12 @@ def segmentationSAM(img):
     return masks
 
 
-def segmentationFinal(depth, image_path):
+
+def segmentationFinal(image_path):
     """Get the segmentation combining SAM with depth estimation. If possible, the function returns an object segmentation
 
     Parameters
     ----------
-    depth : array_like, shape (N,3)
-        Array containing the set of points in space
     image_path : str
         Image path
 
@@ -129,36 +272,32 @@ def segmentationFinal(depth, image_path):
     """
 
 
-    def getIntersectAndUnion(segment, segment_index, masks, thresh):
+    def getIntersectAndUnion(merged, segment_index, thresh):
         """Calculates intersection and union values between 'segment' and 'thresh'"""
 
         intersection = 0
         union = 0
-        
-        # Merge all masks to obtain actual water segment
-        segment_merged = np.zeros(segment['segmentation'].shape, dtype=np.int32)
-        for i in range(segment_merged.shape[0]):
-            for j in range(segment_merged.shape[1]):
-                for m in range(len(masks)):
-                    if masks[m]['segmentation'][i,j]:
-                        segment_merged[i,j] = m+1
+
         
         # Calculate intersection and union values
-        for i in range(segment_merged.shape[0]):
-            for j in range(segment_merged.shape[1]):
-                if segment_merged[i,j] == segment_index+1:
+        for i in range(merged.shape[0]):
+            for j in range(merged.shape[1]):
+                if merged[i,j] == segment_index+1:
                     if thresh[i,j,:].tolist() == list(LIGHT_PURPLE):
                         intersection += 1
                     union += 1
 
-        return segment_merged, intersection, union
+        return intersection, union
     
-
+    start = time.time()
     
     img = cv2.imread(image_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     
     nrows_img, ncols_img, _ = img.shape
+
+    # Estimate depth for image
+    depth = estimate(image_path)
 
     # Segmentation with depth
     thresh = binarySegmentationDepth(depth)
@@ -175,26 +314,37 @@ def segmentationFinal(depth, image_path):
     
     # Get SAM segmentation
     masks = segmentationSAM(img)
-    masks = sorted(masks, key=(lambda x: x['area']), reverse=True)
+    masks = sorted(masks, key=(lambda x: x['area']))
+
+    new_areas = np.zeros(len(masks)).tolist()
+
+    # Merge masks
+    merged = np.zeros((nrows_img, ncols_img),dtype=int)
+    for i in range(merged.shape[0]):
+        for j in range(merged.shape[1]):
+            for m in range(len(masks)):
+                if masks[m]['segmentation'][i,j]:
+                    merged[i,j] = m+1
+                    new_areas[m] += 1
+                    break
     
     # Select biggest segment as water
-    segment_areas = [sub['area'] for sub in masks]
-    water_segment_index = segment_areas.index(max(segment_areas))
-    water_segment = masks[water_segment_index]
+    water_segment_index = np.argmax(np.array(new_areas))
     
-    water_segment_merged, intersection, union = getIntersectAndUnion(water_segment, water_segment_index, masks, thresh)
+    intersection, union = getIntersectAndUnion(merged, water_segment_index, thresh)
     
     # Check if selected water segment has a good "intersect over union" value
-    while (intersection/union) < 0.4:
+    while (intersection/union) < 0.5:
         # "Intersect over union" value is not good enough. Search for another water segment
-        del segment_areas[water_segment_index]
-        if len(segment_areas) == 0:
+        del new_areas[water_segment_index]
+        if len(new_areas) == 0:
             print('Intersection over union is not good enough for any mask. Segmentation based on depth estimation will be used')
+            end = time.time()
+            print('Execution time:',end-start)
             return thresh, None
-        water_segment_index = segment_areas.index(max(segment_areas))
-        water_segment = masks[water_segment_index]
+        water_segment_index = np.argmax(np.array(new_areas))
         
-        water_segment_merged, intersection, union = getIntersectAndUnion(water_segment, water_segment_index, masks, thresh)
+        intersection, union = getIntersectAndUnion(merged, water_segment_index, thresh)
         
     union += (water - intersection)
 
@@ -211,40 +361,50 @@ def segmentationFinal(depth, image_path):
     water = 0
 
     # Create binary and color masks
-    for i in range(water_segment_merged.shape[0]):
-        for j in range(water_segment_merged.shape[1]):
-            if water_segment_merged[i,j] == water_segment_index+1:
+    for i in range(merged.shape[0]):
+        for j in range(merged.shape[1]):
+            if merged[i,j] == water_segment_index+1:
                 color_mask[i,j] = LIGHT_PURPLE
                 binary_mask[i,j] = LIGHT_PURPLE
                 water +=1
             else:  
-                color_mask[i,j] = colors[water_segment_merged[i,j]]
+                color_mask[i,j] = colors[merged[i,j]]
                 binary_mask[i,j] = DARK_BLUE
 
-    water_percent_SAM = water/(water_segment_merged.shape[0]*water_segment_merged.shape[1])
+    water_percent_SAM = water/(merged.shape[0]*merged.shape[1])
 
     if water_percent_SAM/water_percent < 0.5:
         print('No se ha encontrado una máscara binaria mejor. Se utiliza la calculada a partir de la estimación de profundidad')
+        end = time.time()
+        print('Execution time:',end-start)
         return thresh, None
+    
+    end = time.time()
+    print('Execution time:',end-start)
     
     return binary_mask, color_mask
 
 
 
-def binarySegmentationSuperpixels(image_path):
-    """Shows binary segmentation based on HSV range colors using superpixels
+
+
+def binarySegmentationSuperpixels(img):
+    """Get binary segmentation based on HSV range colors using superpixels
 
     Parameters
     ----------
-    image_path : str
-        Image path
+    img : array_like, shape (rows,cols,3)
+        Image to segment
+
+    Returns
+    -------
+    mask : array_like
+        Image with binary segmentation.
     """
 
-    # Read image path
-    img = cv2.imread(image_path)
-
     # Convert to HSV color space
-    hsv_image= cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    hsv_image= cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
 
     # SEEDS parameters
     height,width,channels = hsv_image.shape
@@ -277,39 +437,89 @@ def binarySegmentationSuperpixels(image_path):
     output = np.zeros_like(img)
 
     # Define HSV blue range
-    lower_blue = np.array([97,170,70])
+    lower_blue = np.array([87,150,150])
     upper_blue= np.array([130,255,255])
 
     # Define HSV white range
-    lower_white = np.array([0,0,150])
+    lower_white = np.array([0,0,220])
     upper_white = np.array([180,255,255])
 
     # Loop over each superpixel and color it in either light purple or dark blue
     for i in range(num_superpixels):
         mask = labels == i
-        if (np.count_nonzero((hsv_image[mask] >= lower_blue).all(axis=1) & (hsv_image[mask] <= upper_blue).all(axis=1)) >= len(hsv_image[mask])) or (np.count_nonzero((hsv_image[mask] >= lower_white).all(axis=1) & (hsv_image[mask] <= upper_white).all(axis=1)) >= len(hsv_image[mask])):
+        superpixel_color = np.mean(hsv_image[mask], axis=0)  # Calcula la media del color del superpíxel
+
+        if np.all(superpixel_color >= lower_blue) and np.all(superpixel_color <= upper_blue):
+            output[mask] = LIGHT_PURPLE
+        elif np.all(superpixel_color >= lower_white) and np.all(superpixel_color <= upper_white):
             output[mask] = LIGHT_PURPLE
         else:
             output[mask] = DARK_BLUE
 
+    # Convert output from BGR to RGB for visualization
+    # output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
+    output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
 
-    cv2.imshow('superpixels', result)
-    cv2.waitKey(0)
+    # cv2.imshow('superpixels', result)
+    # cv2.waitKey(0)
+
+    return output
+
+def showBinarySegmentationSuperpixels(image_path):
+    """Shows binary segmentation based on HSV range colors using superpixels
+
+    Parameters
+    ----------
+    image_path : str
+        Image path
+
+    Returns
+    -------
+    output : array_like
+        Image with binary segmentation.
+    """
+
+    # Read image path
+    img = cv2.imread(image_path)
+    # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    start = time.time()
+    mask = binarySegmentationSuperpixels(img)
+    mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
+    end = time.time()
+
+    print('Execution time:',end-start)
+
+    plt.imshow(mask)
+
+    legend_data = [
+        [127,list(LIGHT_PURPLE),"agua"],
+        [126,list(DARK_BLUE),"escena"]
+    ]
+    handles = [
+        Rectangle((0,0),1,1, color = [v/255 for v in c]) for k,c,n in legend_data
+    ]
+    labels = [n for k,c,n in legend_data]
+
+
+    plt.grid(False)
+    plt.axis('off')
+    plt.legend(handles,labels)
+    plt.show()
 
     # Show image
-    cv2.imshow('Superpixel segmentation', output)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow('Superpixel segmentation', cv2.cvtColor(mask, cv2.COLOR_BGR2RGB))
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
+    return mask
 
 
 
-def showSegmentation(depth, binary_mask, color_mask=None):
+def showSegmentation(binary_mask, color_mask=None):
     """Shows both binary and object segmentation images.
 
     Parameters
     ----------
-    depth : array_like, shape (N,3)
-        Array containing the set of points in space
     binary_mask : array_like, shape (nrows, ncols, 3)
         Binary segmentation mask
     color_mask : array_like, shape (nrows, ncols, 3)
@@ -318,8 +528,10 @@ def showSegmentation(depth, binary_mask, color_mask=None):
     """
 
     # Resize mask
-    nrows,ncols = depth.shape
+    nrows, ncols,_ = binary_mask.shape
     binaryMask_resized = cv2.resize(binary_mask, (ncols,nrows), interpolation = cv2.INTER_AREA)
+
+
 
     if color_mask is None:
         ncols_plot = 1
@@ -327,6 +539,16 @@ def showSegmentation(depth, binary_mask, color_mask=None):
     else:
         colorMask_resized = cv2.resize(color_mask, (ncols,nrows), interpolation = cv2.INTER_AREA)
         ncols_plot = 2
+
+    legend_data = [
+        [127,list(LIGHT_PURPLE),"agua"],
+        [126,list(DARK_BLUE),"escena"]
+    ]
+    handles = [
+        Rectangle((0,0),1,1, color = [v/255 for v in c]) for k,c,n in legend_data
+    ]
+    labels = [n for k,c,n in legend_data]
+
 
     # Plot segmentation
     fig = plt.figure(figsize=plt.figaspect(0.5))
@@ -339,6 +561,10 @@ def showSegmentation(depth, binary_mask, color_mask=None):
     ax.set_title('Binary segmentation')
     ax.imshow(binaryMask_resized)
 
+    ax.grid(False)
+    ax.axis('off')
+    ax.legend(handles,labels)
+
     if color_mask is not None:
 
         # ===========================
@@ -348,6 +574,11 @@ def showSegmentation(depth, binary_mask, color_mask=None):
         ax = fig.add_subplot(1, ncols_plot, 2)
         ax.set_title('Object segmentation')
         ax.imshow(colorMask_resized)
+
+        ax.grid(False)
+        ax.axis('off')
+        ax.legend([handles[0]],[labels[0]])
+    
     
     plt.show()
 
@@ -375,11 +606,11 @@ def evaluate(eval_path, mask):
 
     """
 
+    # mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
+
     # Load evaluation mask
     eval_mask = cv2.imread(eval_path)
     eval_mask = cv2.cvtColor(eval_mask, cv2.COLOR_BGR2RGB)
-
-    # mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
 
     c = (0,0,0) # Black
     indices = np.where(np.all(eval_mask == c, axis=-1))

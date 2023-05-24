@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import torch
 import cv2
 import seaborn as sns
@@ -133,7 +134,7 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True):
         for y in range(0, ncols):
             point_array[i] = [x,y,depth[x,y]]
             i += 1
-
+            
     if rotation_angle != 0:
         # Applying rotation
         point_array = rotatePoints(point_array, rotation_axis, rotation_angle, degrees)
@@ -158,13 +159,19 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True):
         c=c,
         cmap=cmap
     )
-    fig.view_init(0,270)
+    fig.view_init(15,235)
 
     fig.set_xlabel(" Y ")
     fig.set_ylabel(" Z ")
     fig.set_zlabel(" X ")
 
     fig.invert_zaxis()
+
+    cmap = mpl.cm.jet_r
+    norm = mpl.colors.Normalize(vmin=np.amin(depth[:,2]), vmax=np.amax(depth[:,2]))
+
+    plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),label='depth estimation value')
+
     plt.show()
 
 def showPointcloudWithMask(depth, mask, coloring):
@@ -187,6 +194,8 @@ def showPointcloudWithMask(depth, mask, coloring):
     if mask is None:
         print('ERROR: mask is empty. Try to use another mask')
         return
+    
+    print('MAXIMO', np.amax(depth[:,2]))
 
     # Resize mask
     nrows,ncols = depth.shape
@@ -205,7 +214,9 @@ def showPointcloudWithMask(depth, mask, coloring):
             pc_mask[:, 2],
             pc_mask[:, 0],
             s=0.03,
-            c=colors
+            c=colors,
+            vmin=np.amin(depth[:,2]),
+            vmax = np.amax(depth[:,2])
         )
     else:
         cmap="jet_r"
@@ -215,20 +226,26 @@ def showPointcloudWithMask(depth, mask, coloring):
             pc_mask[:, 0],
             s=0.03,
             c=colors,
-            cmap=cmap
+            cmap=cmap,
+            vmin=np.amin(depth[:,2]),
+            vmax = np.amax(depth[:,2])
         )
-    fig.view_init(0,270)
+    fig.view_init(15,235)
 
     fig.set_xlim3d(0, ncols)
-    fig.set_ylim3d(np.amin(pc_mask[:,2]), np.amax(pc_mask[:,2]))
+    fig.set_ylim3d(np.amin(depth[:,2]), np.amax(depth[:,2]))
     fig.set_zlim3d(0, nrows)
+
+    fig.set_xlabel(" Y ")
+    fig.set_ylabel(" Z ")
+    fig.set_zlabel(" X ")
 
     fig.invert_zaxis()
     plt.show()
 
 
 
-def showOverheadReproyection(depth, mask=None):
+def showOverheadReproyection(image_path, depth, mask=None):
     """Shows overhead reproyection of depth pointcloud 
 
     Parameters
@@ -248,7 +265,13 @@ def showOverheadReproyection(depth, mask=None):
     
     nrows,ncols = depth.shape
 
-    nrows,ncols = depth.shape
+    # Load image
+    img = cv2.imread(image_path)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    # Resize image
+    img_resized = cv2.resize(img, (ncols,nrows), interpolation = cv2.INTER_AREA)
+    depth_rescaled = np.copy(depth)
 
     if mask is not None:
         # Resize mask
@@ -258,27 +281,44 @@ def showOverheadReproyection(depth, mask=None):
         pc_mask, _ = applyMask(mask_resized, depth, 'depth')
         
         pc_mask[:, 2] = pc_mask[:, 2]*nrows/np.max(pc_mask[:,2])
-        pc_mask = rotatePoints(pc_mask, axis='y', angle=-90, degrees=True)
+        points_rotated = rotatePoints(pc_mask, axis='y', angle=-90, degrees=True)
     
     else:
+
         point_array_rescaled = np.ndarray(shape=(nrows*ncols,3))
-        depth_rescaled = np.copy(depth)
-        depth_rescaled[:,:] = (depth_rescaled[:,:]*nrows) / np.max(depth_rescaled)
+        depth_rescaled[:,:] = (depth_rescaled[:,:]*nrows) / np.max(depth)
+
         i = 0
         for x in range(0, nrows):
             for y in range(0, ncols):
                 point_array_rescaled[i] = [x,y,depth_rescaled[x,y]]
                 i += 1
-        pc_mask = rotatePoints(point_array_rescaled, axis='y', angle=-90, degrees=True)
+        points_rotated = rotatePoints(point_array_rescaled, axis='y', angle=-90, 
+        degrees=True)
 
-    reprojection = points_to_image_torch(pc_mask[:, 0].astype(int), pc_mask[:, 1].astype(int), pc_mask[:, 2], (nrows,ncols))
+
+    reprojection = points_to_image_torch(points_rotated[:, 0].astype(int), points_rotated[:, 1].astype(int), points_rotated[:, 2], (nrows,ncols))
                     
     reprojection = reprojection.squeeze().cpu().numpy()
+    reprojection_colored = np.zeros((reprojection.shape[0],reprojection.shape[1],3))
 
-    # Saving colormapped depth image
-    vmax = np.percentile(reprojection, 95)
-    cmap = mpl.cm.get_cmap("jet_r").copy()
-    cmap.set_under(color='black')
 
-    reprojection_plot = sns.heatmap(reprojection, vmin=0.000001, vmax=vmax, cmap=cmap)
-    plt.show()
+    r = R.from_euler('y',90,True)
+    i = 0
+
+    for i in range(len(points_rotated)):
+        x = int(round(np.max(depth_rescaled))) + int(round(points_rotated[i,0]))
+        y = int(round(points_rotated[i,1]))
+        if reprojection[x,y] > 0:
+            p = r.apply(points_rotated[i])
+            x_ori = int(round(p[0]))
+            y_ori = int(round(p[1]))
+            reprojection_colored[x,y,:] = img_resized[x_ori,y_ori]
+
+    # Resize image
+    reprojection_colored = cv2.resize(reprojection_colored, (img.shape[1],img.shape[0]), interpolation = cv2.INTER_AREA)
+    depth_rescaled = np.copy(depth)
+
+    cv2.imshow('final',cv2.cvtColor(reprojection_colored.astype(np.uint8), cv2.COLOR_BGR2RGB))
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()

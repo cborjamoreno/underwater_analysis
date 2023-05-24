@@ -10,14 +10,15 @@ import os
 import numpy as np
 import PIL.Image as pil
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import torch
 import cv2
 
 from torchvision import transforms
-from .monoUWNet import networks
-from .monoUWNet.layers import disp_to_depth
-from .monoUWNet.my_utils import *
+from modules.Module3D.monoUWNet import networks
+from modules.Module3D.monoUWNet.layers import disp_to_depth
+from modules.Module3D.monoUWNet.my_utils import *
 
 LIGHT_PURPLE = (213, 184, 255)
 DARK_BLUE = (1, 1, 122)
@@ -43,7 +44,7 @@ def estimate(image_path):
     else:
         device = "cpu"
 
-    model_folder = 'Module3D/monoUWNet/20220908_FLC_all_wo_rhf_FLC_4DS_tiny_sky/models/weights_last'
+    model_folder = 'modules/Module3D/monoUWNet/20220908_FLC_all_wo_rhf_FLC_4DS_tiny_sky/models/weights_last'
 
     print("   Loading model from",model_folder)
     encoder_path = os.path.join(model_folder, "encoder.pth")
@@ -98,7 +99,7 @@ def estimate(image_path):
         
         return depth[0,0].squeeze().cpu().numpy()
 
-def showColorMap(depth):
+def showColorMap(depth, image_path):
     """ Function to show the colormapped depth image
 
     Parameters
@@ -113,6 +114,22 @@ def showColorMap(depth):
     mapper = cm.ScalarMappable(norm=normalizer, cmap='jet')
     colormapped_im = (mapper.to_rgba(depth)[:, :, :3] * 255).astype(np.uint8)
     print('Press any key to close')
-    cv2.imshow('colormap depth image', colormapped_im)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+
+    img = cv2.imread(image_path)
+    nrows,ncols,_ = img.shape
+
+    # Resize colormap
+    colormapped_im_resized = cv2.resize(colormapped_im, (ncols,nrows), interpolation = cv2.INTER_AREA)
+
+    colormapped_im_resized = cv2.cvtColor(colormapped_im_resized, cv2.COLOR_BGR2RGB)
+
+    cmap = mpl.cm.jet_r
+    norm = mpl.colors.Normalize(vmin=np.amin(depth[:,2]), vmax=np.amax(depth[:,2]))
+
+    plt.imshow(colormapped_im_resized)
+    plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),label='depth estimation value')
+    plt.show()
+
+    # cv2.imshow('colormap depth image', colormapped_im_resized)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
