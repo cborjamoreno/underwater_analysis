@@ -52,7 +52,7 @@ def rotatePoints(points, axis, angle, degrees=True):
     
     return rotated_array
 
-def applyMask(mask, points, coloring):
+def applyMask(mask, points, coloring, img=None):
     """Apply skyline mask to pointcloud
 
     Parameters
@@ -84,6 +84,9 @@ def applyMask(mask, points, coloring):
                 
     point_array = np.zeros(shape=(useful,3))
     colors = np.array(np.zeros(shape=(useful,3)))
+
+    print(mask.shape)
+    print(img.shape)
     
     
     i = 0
@@ -93,8 +96,12 @@ def applyMask(mask, points, coloring):
                 point_array[i] = [x,y,points_mask[x,y]]
                 if coloring == 'OBJECTS':
                     colors[i] = [val/255.0 for val in mask[x,y,:].tolist()]
-                elif coloring == 'BINARY':
-                    colors[i] = [val/255.0 for val in list(DARK_BLUE)]
+                elif coloring == 'FLOATING':
+                    if img is not None:
+                        if mask[x,y,:].tolist() == list((0,128,90)):
+                            colors[i] = [val/255.0 for val in list((255,0,0))]
+                        else:
+                            colors[i] = [val/255.0 for val in list(img[x,y,:])]
                 i += 1
     
     if coloring == 'DEPTH':
@@ -103,7 +110,7 @@ def applyMask(mask, points, coloring):
     return point_array, colors
 
 
-def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True):
+def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True, img=None):
     """Shows pointcloud from depth points applying rotation. 
 
     Parameters
@@ -119,6 +126,8 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True):
     degrees : bool, optional
         If False, then the 'angle' is assumed to be in radians.
         Default is True.
+    img : array, shape (nrows,ncols,3)
+        If passed, each point will be colored as img.
     """
 
     nrows,ncols = depth.shape
@@ -151,14 +160,27 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True):
         c=point_array[:, 2],
         cmap="jet_r"
 
-    fig.scatter(
-        point_array[:, 1],
-        point_array[:, 2],
-        point_array[:, 0],
-        s=0.01,
-        c=c,
-        cmap=cmap
-    )
+    if img is not None:
+        img_resized = cv2.resize(img, (ncols,nrows), interpolation = cv2.INTER_AREA)
+        colors = list(img_resized.reshape(img_resized.shape[0]*img_resized.shape[1],3))
+        colors = [[c[0]/255,c[1]/255,c[2]/255] for c in colors]
+
+        fig.scatter(
+            point_array[:, 1],
+            point_array[:, 2],
+            point_array[:, 0],
+            s=0.01,
+            c=colors
+        )
+    else:
+        fig.scatter(
+            point_array[:, 1],
+            point_array[:, 2],
+            point_array[:, 0],
+            s=0.01,
+            c=c,
+            cmap=cmap
+        )
     fig.view_init(15,235)
 
     fig.set_xlabel(" Y ")
@@ -166,15 +188,15 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True):
     fig.set_zlabel(" X ")
 
     fig.invert_zaxis()
+    if img is None:
+        cmap = mpl.cm.jet_r
+        norm = mpl.colors.Normalize(vmin=np.amin(depth[:,2]), vmax=np.amax(depth[:,2]))
 
-    cmap = mpl.cm.jet_r
-    norm = mpl.colors.Normalize(vmin=np.amin(depth[:,2]), vmax=np.amax(depth[:,2]))
-
-    plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),label='depth estimation value')
+        plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),label='depth estimation value')
 
     plt.show()
 
-def showPointcloudWithMask(depth, mask, coloring):
+def showPointcloudWithMask(depth, mask, coloring, img=None):
     """Shows pointcloud from depth points after apply the segmentation mask 'mask' to delete water points with the specify coloring type. 
 
     Parameters
@@ -183,11 +205,11 @@ def showPointcloudWithMask(depth, mask, coloring):
         Array containing the set of points in space
     mask : array_like, shape (nrows, ncols, 3)
         Segmentation mask
-    coloring : str, {'OBJECTS', 'BINARY', 'DEPTH'}
+    coloring : str, {'OBJECTS', 'FLOATING', 'DEPTH'}
         Points coloring type.
          - OBJECTS: each point (x,y,z) is colored with the color
            specified in mask[x,y,:].
-         - BINARY: each point is colored with RGB DARK_BLUE = (1, 1, 122).
+         - FLOATING: each point p is colored with RGB = (255, 0, 0) if p is part of floating objetc in mask or with the original color in img.
          - DEPTH: each point (x,y,z) is colored with colormap 'jet_r' taking depth[x,y,z] value.
     """
 
@@ -200,15 +222,16 @@ def showPointcloudWithMask(depth, mask, coloring):
     # Resize mask
     nrows,ncols = depth.shape
     mask_resized = cv2.resize(mask, (ncols,nrows), interpolation = cv2.INTER_AREA)
+    img_resized = cv2.resize(img, (ncols,nrows), interpolation = cv2.INTER_AREA)
 
     # Apply mask to pointcloud to delete water points
-    pc_mask, colors = applyMask(mask_resized, depth, coloring)
+    pc_mask, colors = applyMask(mask_resized, depth, coloring, img_resized)
 
     # Plot pointcloud
     fig = plt.figure().add_subplot(projection='3d')
     fig.set_title('3D pointcloud')
     
-    if coloring == 'OBJECTS' or coloring == 'BINARY':
+    if coloring == 'OBJECTS' or coloring == 'FLOATING':
         fig.scatter(
             pc_mask[:, 1],
             pc_mask[:, 2],
@@ -230,6 +253,10 @@ def showPointcloudWithMask(depth, mask, coloring):
             vmin=np.amin(depth[:,2]),
             vmax = np.amax(depth[:,2])
         )
+        cmap = mpl.cm.jet_r
+        norm = mpl.colors.Normalize(vmin=np.amin(depth[:,2]), vmax=np.amax(depth[:,2]))
+
+        plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),label='depth estimation value')
     fig.view_init(15,235)
 
     fig.set_xlim3d(0, ncols)

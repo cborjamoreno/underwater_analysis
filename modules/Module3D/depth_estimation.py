@@ -128,6 +128,8 @@ def showColorMap(depth, image_path):
 
     plt.imshow(colormapped_im_resized)
     plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),label='depth estimation value')
+    plt.grid(False)
+    plt.axis('off')
     plt.show()
 
     # cv2.imshow('colormap depth image', colormapped_im_resized)

@@ -33,6 +33,8 @@ def showSAM(img, masks):
     fig = plt.figure(figsize=(20,20))
     plt.imshow(img)
 
+    masks
+
     if len(masks) == 0:
         return
     sorted_anns = sorted(masks, key=(lambda x: x['area']), reverse=True)
@@ -123,7 +125,7 @@ def showBinarySegmentationDepth(image_path):
 
     plt.grid(False)
     plt.axis('off')
-    plt.legend(handles,labels)
+    # plt.legend(handles,labels)
     plt.show()
 
     # Show image
@@ -150,13 +152,13 @@ def floatingSegmentation(binary_mask):
 
     """
     # Convert to gray scale
-    gray = cv2.cvtColor(binary_mask, cv2.COLOR_RGB2GRAY)
+    gray = cv2.cvtColor(binary_mask.astype(np.uint8), cv2.COLOR_RGB2GRAY)
 
     # Find Canny edges
     edged = cv2.Canny(gray, 30, 200)
 
     # Taking a matrix of size 5 as the kernel
-    kernel = np.ones((3, 3), np.uint8)
+    kernel = np.ones((2, 2), np.uint8)
     edged = cv2.dilate(edged, kernel, iterations=1)
     
     # Finding Contours
@@ -211,7 +213,7 @@ def showFloatingSegmentation(binary_mask):
 
     plt.grid(False)
     plt.axis('off')
-    plt.legend(handles,labels)
+    # plt.legend(handles,labels)
     plt.show()
 
     # Show image
@@ -503,7 +505,7 @@ def showBinarySegmentationSuperpixels(image_path):
 
     plt.grid(False)
     plt.axis('off')
-    plt.legend(handles,labels)
+    # plt.legend(handles,labels)
     plt.show()
 
     # Show image
@@ -563,7 +565,7 @@ def showSegmentation(binary_mask, color_mask=None):
 
     ax.grid(False)
     ax.axis('off')
-    ax.legend(handles,labels)
+    # ax.legend(handles,labels)
 
     if color_mask is not None:
 
