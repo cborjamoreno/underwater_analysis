@@ -11,6 +11,7 @@ import time
 from modules.Module3D.depth_estimation import *
 from modules.Module3D.pointcloud import *
 from modules.Segmentation.segmentation import *
+from modules.Final.final import *
 
 def parse_args():
     """
@@ -32,6 +33,10 @@ def parse_args():
 
 def main(args):
     image_path = args.path
+    img = cv2.imread(image_path)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+
 
     # print('Generating binary superpixels segmentation...')
     # binary_mask = showBinarySegmentationSuperpixels(image_path)
@@ -41,52 +46,31 @@ def main(args):
     # binary_mask = showBinarySegmentationDepth(image_path)
     # print('-> Done!\n')
 
-    print('Estimating depth for image:'+image_path+'...')
-    depth = estimate(image_path)
-    print('-> Done!\n')
+    # print('Estimating depth for image:'+image_path+'...')
+    # depth = estimate(image_path)
+    # print('-> Done!\n')
     # print('Showing colormap estimation...')
     # showColorMap(depth, image_path)
     # print('-> Done!\n')
-    print('Showing 3D pointcloud')
-    img = cv2.imread(image_path)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    # print('Showing 3D pointcloud')
+    # img = cv2.imread(image_path)
+    # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     # showPointcloud(depth,rotation_axis='y',rotation_angle=0,img=img)
     # print('Showing 3D pointcloud')
-    showPointcloud(depth,rotation_axis='y',rotation_angle=-90,degrees=True,img=img)
+    # showPointcloud(depth,rotation_axis='y',rotation_angle=-90,degrees=True,img=img)
     
-    # print('Generating binary and object segmentation...')
-    # binary_mask, color_mask = segmentationFinal(image_path)
-    # print('-> Done!\n')
+    print('Generating binary and object segmentation...')
+    binary_mask, color_mask = segmentationFinal(image_path,args.pc_color)
+    print('-> Done!\n')
 
-    # print('Showing segmentations...')
-    # showSegmentation(binary_mask, color_mask)
-    # print('-> Done!\n')
-
-
-
-
-
-
-
-
-    # print('Generating floating objects segmentation...')
-    # floating_mask = floatingSegmentation(binary_mask)
-    # print('-> Done!\n')
 
     # print('Generating floating objects segmentation...')
     # showFloatingSegmentation(binary_mask)
     # print('-> Done!\n')
 
-    # img = cv2.imread(image_path)
-    # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     # masks = segmentationSAM(img)
     # showSAM(img,masks)
 
-
-    
-    # print('Showing 3D pointcloud with '+args.pc_color+' coloring type...')
-    # showPointcloudWithMask(depth, floating_mask, args.pc_color, img)
-    # print('-> Done!\n')
     # print('Showing 3D pointcloud with '+args.pc_color+' coloring type...')
     # showPointcloudWithMask(depth, color_mask, 'OBJECTS')
     # print('-> Done!\n')
