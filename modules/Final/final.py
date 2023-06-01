@@ -45,10 +45,6 @@ def applyMask(mask, points, coloring, img=None):
                 
     point_array = np.zeros(shape=(useful,3))
     colors = np.array(np.zeros(shape=(useful,3)))
-
-    print(mask.shape)
-    print(img.shape)
-    
     
     i = 0
     for x in range(nrows):
@@ -187,7 +183,7 @@ def showFinalSegmentation(binary_mask, color_mask=None):
 
     ax.grid(False)
     ax.axis('off')
-    # ax.legend(handles,labels)
+    ax.legend(handles,labels)
 
     if color_mask is not None:
 
@@ -292,6 +288,15 @@ def segmentationFinal(image_path,coloring):
             print('Intersection over union is not good enough for any mask. Segmentation based on depth estimation will be used')
             end = time.time()
             print('Execution time:',end-start)
+            showFinalSegmentation(thresh)
+
+            if coloring == 'FLOATING':
+                thresh = thresh.astype('uint8')
+                floating_mask = floatingSegmentation(thresh)
+                showPointcloudWithMask(depth,floating_mask,coloring,img)
+            else:
+                thresh = thresh.astype('uint8')
+                showPointcloudWithMask(depth,thresh,coloring,img)
             return thresh, None
         water_segment_index = np.argmax(np.array(new_areas))
         
@@ -324,15 +329,23 @@ def segmentationFinal(image_path,coloring):
 
     water_percent_SAM = water/(merged.shape[0]*merged.shape[1])
 
+    print(type(binary_mask[0,0,0]))
+    print(type(thresh[0,0,0]))
+
+    success = True
     if water_percent_SAM/water_percent < 0.5:
         print('No se ha encontrado una máscara binaria mejor. Se utiliza la calculada a partir de la estimación de profundidad')
         end = time.time()
         print('Execution time:',end-start)
-        return thresh, None
+        success = False
     
     end = time.time()
     print('Execution time:',end-start)
 
+    if success == False:
+        thresh = thresh.astype('uint8')
+        binary_mask = thresh.copy()
+        color_mask = None
     showFinalSegmentation(binary_mask,color_mask)
 
     if coloring == 'FLOATING':

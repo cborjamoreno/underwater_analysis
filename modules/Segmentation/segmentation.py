@@ -164,20 +164,17 @@ def floatingSegmentation(binary_mask):
     # Finding Contours
     contours, hierarchy = cv2.findContours(edged, 
         cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-    print(len(contours))
     
     result = binary_mask.copy()
 
     for i in range(len(contours)):
 
-        # Calculate contour's area
-        area = cv2.contourArea(contours[i])
-
         # Check if contour is closed
         if hierarchy[0][i][2] > 0:
-
             # Draw and fill contour 
             cv2.drawContours(result, [contours[i]], 0, (0,128,90), -1)
+
+
 
     return result
 

@@ -25,7 +25,7 @@ def parse_args():
     parser.add_argument('-p', '--path', type=str,
                         help='Input image path', required=True)
     parser.add_argument('--pc_color', 
-                        help='Point cloud colors.', choices=['DEPTH', 'FLOATING', 'OBJECTS'], default='OBJECTS')
+                        help='Point cloud colors.', choices=['DEPTH', 'FLOATING'], default='DEPTH')
     parser.add_argument('-eval', '--evalPath', type=str,
                         help='Evaluation segmented mask path. Water pixels must be labeled as RGB (0,0,0) in mask located in \'evalPath\'.')
     
@@ -55,7 +55,7 @@ def main(args):
     # print('Showing 3D pointcloud')
     # img = cv2.imread(image_path)
     # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    # showPointcloud(depth,rotation_axis='y',rotation_angle=0,img=img)
+    # showPointcloud(depth,rotation_axis='y',rotation_angle=0)
     # print('Showing 3D pointcloud')
     # showPointcloud(depth,rotation_axis='y',rotation_angle=-90,degrees=True,img=img)
     
@@ -83,13 +83,13 @@ def main(args):
     # print('-> Done!\n')
 
 
-    # if args.evalPath:
-    #     print('Evaluating...')
-    #     TP, FP, TN, FN = evaluate(args.evalPath, binary_mask)
+    if args.evalPath:
+        print('Evaluating...')
+        TP, FP, TN, FN = evaluate(args.evalPath, binary_mask)
 
-    #     print('Precision =',TP/(TP+FP))
-    #     print('Recall =',TP/(TP+FN))
-    #     print('-> Done!\n')
+        print('Precision =',TP/(TP+FP))
+        print('Recall =',TP/(TP+FN))
+        print('-> Done!\n')
 
 
     
