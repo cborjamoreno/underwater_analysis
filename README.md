@@ -7,4 +7,8 @@ The segmentation method combines [Segment Anything Model](https://github.com/fac
 
 ![Results for an example image.](https://github.com/cborjamoreno/underwater_analysis/blob/main/example.png?raw=true)
 
+The model has been tested with some images from [VISEAON Marine Imaging Lab](https://www.viseaon.haifa.ac.il/) and [Semantic Segmentation Underwater Imagery](https://www.kaggle.com/datasets/ashish2001/semantic-segmentation-of-underwater-imagery-suim) dataset.
+
+test_sample.jpg has been taken from: [VISEAON Marine Imaging Lab](https://www.viseaon.haifa.ac.il/)
+
 
