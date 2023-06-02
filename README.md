@@ -11,4 +11,11 @@ The model has been tested with some images from [VISEAON Marine Imaging Lab](htt
 
 test_sample.jpg has been taken from [this site](https://seaworld.com/orlando/-/media/seaworld-orlando/blogs/featured-images/2018/august/bull-shark-in-the-wild_660x410.ashx?version=1_201808073758&h=410&w=660&la=en&hash=5ACF124C710F50E107A938CCD184A8A886DFC2E1).
 
+#Run
+$> python demo.py -p test_sample.py
+
+#Options
+To show all execution options:
+$> python demo.py -h
+
 
