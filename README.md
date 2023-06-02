@@ -9,6 +9,6 @@ The segmentation method combines [Segment Anything Model](https://github.com/fac
 
 The model has been tested with some images from [VISEAON Marine Imaging Lab](https://www.viseaon.haifa.ac.il/) and [Semantic Segmentation Underwater Imagery](https://www.kaggle.com/datasets/ashish2001/semantic-segmentation-of-underwater-imagery-suim) dataset.
 
-test_sample.jpg has been taken from: [VISEAON Marine Imaging Lab](https://www.viseaon.haifa.ac.il/)
+test_sample.jpg has been taken from [this site](https://seaworld.com/orlando/-/media/seaworld-orlando/blogs/featured-images/2018/august/bull-shark-in-the-wild_660x410.ashx?version=1_201808073758&h=410&w=660&la=en&hash=5ACF124C710F50E107A938CCD184A8A886DFC2E1).
 
 
