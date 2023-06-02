@@ -104,9 +104,10 @@ def showColorMap(depth, image_path):
 
     Parameters
     ----------
-    depth : numpy array, shape (N,3)
+    depth : numpy array, shape (nrows,ncols)
         Depth estimation
-    
+    image_path: str
+        Image path
     """
     
     vmax = np.percentile(depth, 95)
@@ -131,7 +132,3 @@ def showColorMap(depth, image_path):
     plt.grid(False)
     plt.axis('off')
     plt.show()
-
-    # cv2.imshow('colormap depth image', colormapped_im_resized)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """ 
-pointcloud.py: Módulo de nubes de puntos. Permite generar y manejar nubes de puntos y reproyectarlas a una persepctiva cenital
+pointcloud.py: Módulo de nubes de puntos. Permite generar y rotar nubes de puntos y reproyectarlas a una persepctiva cenital
 """
 
 from __future__ import absolute_import, division, print_function
@@ -58,12 +58,12 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True, img
 
     Parameters
     ----------
-    depth : array_like, shape (N,3)
-        Array containing the set of points in space
-    axis : string
+    depth : array_like, shape (nrows,ncols)
+        Depth estimation for image_path image.
+    rotation_axis : string
         Specifies the axis for rotation. Up to 3 characters belonging to the
         set {'x', 'y', 'z'}.
-    angle : float
+    rotation_angle : float
         Angle for rotation. Euler angle specified in radians
         ('degrees' is False) or degrees ('degrees' is True).
     degrees : bool, optional
@@ -77,7 +77,7 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True, img
 
     # Plot pointcloud
     fig = plt.figure().add_subplot(projection='3d')
-    # fig.set_title('3D pointcloud')
+    fig.set_title('3D pointcloud')
 
     point_array = np.ndarray(shape=(nrows*ncols,3))
 
@@ -141,15 +141,15 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True, img
 
 
 
-def showOverheadReproyection(image_path, depth, mask=None):
-    """Shows overhead reproyection of depth pointcloud 
+def showOverheadReproyection(image_path, depth):
+    """Shows overhead reproyection of image_path using depth information 
 
     Parameters
     ----------
-    depth : array_like, shape (N,3)
-        Array containing the set of points in space
-    mask : array_like, shape (nrows, ncols, 3), optional
-        Segmentation mask
+    image_path : str
+        Image path
+    depth : array_like, shape (nrows,ncols)
+        Depth estimation for image_path image.
     """
 
     def points_to_image_torch(xs, ys, zs, sensor_size=(192,640)):
@@ -168,29 +168,17 @@ def showOverheadReproyection(image_path, depth, mask=None):
     # Resize image
     img_resized = cv2.resize(img, (ncols,nrows), interpolation = cv2.INTER_AREA)
     depth_rescaled = np.copy(depth)
-
-    if mask is not None:
-        # Resize mask
-        mask_resized = cv2.resize(mask, (ncols,nrows), interpolation = cv2.INTER_AREA)
-
-        # Apply mask to pointcloud to delete water points
-        pc_mask, _ = applyMask(mask_resized, depth, 'depth')
-        
-        pc_mask[:, 2] = pc_mask[:, 2]*nrows/np.max(pc_mask[:,2])
-        points_rotated = rotatePoints(pc_mask, axis='y', angle=-90, degrees=True)
     
-    else:
+    point_array_rescaled = np.ndarray(shape=(nrows*ncols,3))
+    depth_rescaled[:,:] = (depth_rescaled[:,:]*nrows) / np.max(depth)
 
-        point_array_rescaled = np.ndarray(shape=(nrows*ncols,3))
-        depth_rescaled[:,:] = (depth_rescaled[:,:]*nrows) / np.max(depth)
-
-        i = 0
-        for x in range(0, nrows):
-            for y in range(0, ncols):
-                point_array_rescaled[i] = [x,y,depth_rescaled[x,y]]
-                i += 1
-        points_rotated = rotatePoints(point_array_rescaled, axis='y', angle=-90, 
-        degrees=True)
+    i = 0
+    for x in range(0, nrows):
+        for y in range(0, ncols):
+            point_array_rescaled[i] = [x,y,depth_rescaled[x,y]]
+            i += 1
+    points_rotated = rotatePoints(point_array_rescaled, axis='y', angle=-90, 
+    degrees=True)
 
 
     reprojection = points_to_image_torch(points_rotated[:, 0].astype(int), points_rotated[:, 1].astype(int), points_rotated[:, 2], (nrows,ncols))

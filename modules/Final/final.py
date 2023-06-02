@@ -13,15 +13,22 @@ from modules.Segmentation.segmentation import segmentationSAM, binarySegmentatio
 LIGHT_PURPLE = (213, 184, 255)
 DARK_BLUE = (1, 1, 122)
 
-def applyMask(mask, points, coloring, img=None):
-    """Apply skyline mask to pointcloud
+def applyMask(mask, depth, coloring, img=None):
+    """Apply segmentation mask to pointcloud
 
     Parameters
     ----------
     mask : array_like, shape (nrows, ncols, 3)
-        Image that represent de skyline mask
-    points : array_like, shape (N,3)
-        Array containing the set of points in space
+        Segmentation mask. If coloring = 'FLOATING' mask should be a floating segmentation mask.
+    depth : array_like, shape (nrows,ncols)
+        Depth estimation
+    coloring : str, {'FLOATING', 'DEPTH'}
+        Points coloring type.
+         - FLOATING: each point p is colored with RGB = (255, 0, 0) if p is part of floating objetc in mask or with the original color in img.
+         - DEPTH: each point (x,y,z) is colored with colormap 'jet_r' taking depth[x,y,z] value.
+    img : array_like, shape (rows,cols,3), optional
+        Original image. If coloring = 'FLOATING', img can't be None.
+         
 
     Returns
     -------
@@ -29,9 +36,9 @@ def applyMask(mask, points, coloring, img=None):
         Resulting array after deleting water pixels
 
     """
-    nrows,ncols = points.shape
+    nrows,ncols = depth.shape
     
-    points_mask = points.copy()
+    points_mask = depth.copy()
     
     delete_counter = 0
     
@@ -52,11 +59,11 @@ def applyMask(mask, points, coloring, img=None):
             if points_mask[x,y] < 0.9:
                 point_array[i] = [x,y,points_mask[x,y]]
                 if coloring == 'FLOATING':
-                    if img is not None:
-                        if mask[x,y,:].tolist() == list((0,128,90)):
-                            colors[i] = [val/255.0 for val in list((255,0,0))]
-                        else:
-                            colors[i] = [val/255.0 for val in list(img[x,y,:])]
+                    assert img is not None, "img can't be None if coloring = 'FLOATING"
+                    if mask[x,y,:].tolist() == list((0,128,90)):
+                        colors[i] = [val/255.0 for val in list((255,0,0))]
+                    else:
+                        colors[i] = [val/255.0 for val in list(img[x,y,:])]
                 i += 1
     
     if coloring == 'DEPTH':
@@ -77,11 +84,14 @@ def showPointcloudWithMask(depth, mask, coloring, img=None):
         Points coloring type.
          - FLOATING: each point p is colored with RGB = (255, 0, 0) if p is part of floating objetc in mask or with the original color in img.
          - DEPTH: each point (x,y,z) is colored with colormap 'jet_r' taking depth[x,y,z] value.
+    img : array_like, shape (rows,cols,3), optional
+        Original image. If coloring = 'FLOATING', img can't be None.
+    
     """
 
-    if mask is None:
-        print('ERROR: mask is empty. Try to use another mask')
-        return
+    assert mask is not None, "mask is empty, try to use another mask."
+    if coloring == 'FLOATING':
+        assert img is not None, "img can't be None if coloring = 'FLOATING"
     
 
     # Resize mask
@@ -142,7 +152,7 @@ def showFinalSegmentation(binary_mask, color_mask=None):
     ----------
     binary_mask : array_like, shape (nrows, ncols, 3)
         Binary segmentation mask
-    color_mask : array_like, shape (nrows, ncols, 3)
+    color_mask : array_like, shape (nrows, ncols, 3), optional
         Object segmentation mask. If color_mask is None, object segmentation is not shown
 
     """
@@ -209,6 +219,10 @@ def segmentationFinal(image_path,coloring):
     ----------
     image_path : str
         Image path
+    coloring : str, {'OBJECTS', 'FLOATING', 'DEPTH'}
+        Points coloring type.
+         - FLOATING: each point p is colored with RGB = (255, 0, 0) if p is part of floating objetc in mask or with the original color in img.
+         - DEPTH: each point (x,y,z) is colored with colormap 'jet_r' taking depth[x,y,z] value.
 
     Returns
     -------
@@ -220,7 +234,7 @@ def segmentationFinal(image_path,coloring):
 
 
     def getIntersectAndUnion(merged, segment_index, thresh):
-        """Calculates intersection and union values between 'segment' and 'thresh'"""
+        """Calculates intersection and union values between 'merged' and 'thresh'"""
 
         intersection = 0
         union = 0

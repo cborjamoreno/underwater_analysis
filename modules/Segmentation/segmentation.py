@@ -53,27 +53,27 @@ def showSAM(img, masks):
 
 
 
-def binarySegmentationDepth(points):
-    """Get waterbody segmentation using depth estimation
+def binarySegmentationDepth(depth):
+    """Get waterbody binary segmentation using depth estimation threshold
 
     Parameters
     ----------
-    points : array_like, shape (N,3)
-        Array containing the set of points in 3D
+    depth : numpy array, shape (nrows,ncols)
+        Depth estimation
 
     Returns
     -------
     img : array_like,
-        Image with the waterbody segmentation
+        Image with the waterbody binary segmentation
 
     """
-    nrows,ncols = points.shape
+    nrows,ncols = depth.shape
     
     img = np.zeros((nrows,ncols,3), dtype=np.int32)
     
     for i in range(nrows):
         for j in range(ncols):
-            if points[i,j] > 0.55:
+            if depth[i,j] > 0.55:
                 img[i,j] = LIGHT_PURPLE
             else:
                 img[i,j] = DARK_BLUE
@@ -123,15 +123,11 @@ def showBinarySegmentationDepth(image_path):
     labels = [n for k,c,n in legend_data]
 
 
+    # Show image
     plt.grid(False)
     plt.axis('off')
-    # plt.legend(handles,labels)
+    plt.legend(handles,labels)
     plt.show()
-
-    # Show image
-    # cv2.imshow('Depth-based segmentation', cv2.cvtColor(mask_resized, cv2.COLOR_BGR2RGB))
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
     
     return mask_resized
 
@@ -208,15 +204,12 @@ def showFloatingSegmentation(binary_mask):
     labels = [n for k,c,n in legend_data]
 
 
+    # Show image
     plt.grid(False)
     plt.axis('off')
-    # plt.legend(handles,labels)
+    plt.legend(handles,labels)
     plt.show()
 
-    # Show image
-    # cv2.imshow('Floating objects segmentation', cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
     
     return result
 
@@ -323,7 +316,6 @@ def binarySegmentationSuperpixels(img):
             output[mask] = DARK_BLUE
 
     # Convert output from BGR to RGB for visualization
-    # output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
     output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
 
     # cv2.imshow('superpixels', result)
@@ -347,7 +339,6 @@ def showBinarySegmentationSuperpixels(image_path):
 
     # Read image path
     img = cv2.imread(image_path)
-    # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     start = time.time()
     mask = binarySegmentationSuperpixels(img)
     mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
@@ -367,15 +358,11 @@ def showBinarySegmentationSuperpixels(image_path):
     labels = [n for k,c,n in legend_data]
 
 
+    # Show image
     plt.grid(False)
     plt.axis('off')
-    # plt.legend(handles,labels)
+    plt.legend(handles,labels)
     plt.show()
-
-    # Show image
-    # cv2.imshow('Superpixel segmentation', cv2.cvtColor(mask, cv2.COLOR_BGR2RGB))
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
 
     return mask
 
@@ -403,8 +390,6 @@ def evaluate(eval_path, mask):
         False negatives
 
     """
-
-    # mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
 
     # Load evaluation mask
     eval_mask = cv2.imread(eval_path)
