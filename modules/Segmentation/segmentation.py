@@ -114,8 +114,8 @@ def showBinarySegmentationDepth(image_path):
     plt.imshow(mask_resized)
 
     legend_data = [
-        [127,list(LIGHT_PURPLE),"agua"],
-        [126,list(DARK_BLUE),"escena"]
+        [127,list(LIGHT_PURPLE),"water"],
+        [126,list(DARK_BLUE),"scene"]
     ]
     handles = [
         Rectangle((0,0),1,1, color = [v/255 for v in c]) for k,c,n in legend_data
@@ -194,9 +194,9 @@ def showFloatingSegmentation(binary_mask):
     plt.imshow(result)
 
     legend_data = [
-        [127,list(LIGHT_PURPLE),"agua"],
-        [126,list(DARK_BLUE),"escena"],
-        [125,list([0,128,90]),"flotante"]
+        [127,list(LIGHT_PURPLE),"water"],
+        [126,list(DARK_BLUE),"scene"],
+        [125,list([0,128,90]),"floating"]
     ]
     handles = [
         Rectangle((0,0),1,1, color = [v/255 for v in c]) for k,c,n in legend_data
@@ -349,8 +349,8 @@ def showBinarySegmentationSuperpixels(image_path):
     plt.imshow(mask)
 
     legend_data = [
-        [127,list(LIGHT_PURPLE),"agua"],
-        [126,list(DARK_BLUE),"escena"]
+        [127,list(LIGHT_PURPLE),"water"],
+        [126,list(DARK_BLUE),"scene"]
     ]
     handles = [
         Rectangle((0,0),1,1, color = [v/255 for v in c]) for k,c,n in legend_data
