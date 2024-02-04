@@ -436,7 +436,7 @@ def segmentationSAM(img):
             - crop_box : the crop of the image used to generate this mask in XYWH format
     """
 
-    sam = sam_model_registry["vit_h"](checkpoint="modules/vit_h.pth")
+    sam = sam_model_registry["vit_b"](checkpoint="modules/vit_b.pth")
     mask_generator = SamAutomaticMaskGenerator(
         model=sam,
         points_per_side=32
