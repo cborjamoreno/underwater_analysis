@@ -24,11 +24,13 @@ def parse_args():
 
     parser.add_argument('-p', '--path', type=str,
                         help='Input path', required=True)
+    parser.add_argument('-o', '--output', type=str,
+                        help='Output path')
     parser.add_argument('--colormap', action='store_true',
                         help='Show colormap')
-    parser.add_argument('--pointcloud', nargs=2,
-                        metavar=('rotation_axis','rotation_amgle (degrees)'),
-                        help='Show pointcloud with a rotation')
+    parser.add_argument('--pointcloud', nargs='*', default=None,
+                    metavar=('rotation_axis','rotation_angle (degrees)'),
+                    help='Show pointcloud with a rotation')
     parser.add_argument('--reprojection', action='store_true',
                         help='Show overhead reprojection')
     parser.add_argument('--superpixels_seg', action='store_true',
@@ -48,8 +50,9 @@ def parse_args():
 
 def main(args):
     directory_path = args.path
+    if not args.pointcloud:
+        args.pointcloud = ['x', '0']
     for filename in os.listdir(directory_path):
-        print(len(os.listdir(directory_path)))
         #check if the file d_r_47_.jpg is in the directory
         if filename == 'd_r_47_.jpg':
             print('AAAAAAAAAAAAAAAd_r_47_.jpg is in the directory')
@@ -57,6 +60,11 @@ def main(args):
             image_path = os.path.join(directory_path, filename)
             img = cv2.imread(image_path)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+            if args.output:
+                output_path = os.path.join(args.output, filename.split('.')[0])
+            else:
+                output_path = None
 
             print(f'Processing {filename}...')
 
@@ -66,7 +74,7 @@ def main(args):
                 print('-> Done!\n')
                 if args.colormap:
                     print('Showing colormap estimation...')
-                    showColorMap(depth, image_path)
+                    showColorMap(depth, image_path, output_path+'/'+filename.split('.')[0]+'_colormap.png' if output_path else None)
                     print('-> Done!\n')
                 if args.pointcloud:
                     print('Showing 3D pointcloud')
@@ -74,21 +82,21 @@ def main(args):
                 if args.reprojection:
                     print('Showing overhead reproyection...')
                     print('Press any key to close the window.')
-                    showOverheadReproyection(image_path,depth)
+                    showOverheadReproyection(image_path,depth, output_path+'/'+filename.split('.')[0]+'_reprojection.png' if output_path else None)
                     print('-> Done!\n')
 
             if args.superpixels_seg:
                 print('Generating binary superpixels segmentation...')
-                showBinarySegmentationSuperpixels(image_path)
+                showBinarySegmentationSuperpixels(image_path, output_path+'/'+filename.split('.')[0]+'_superpixels.png' if output_path else None)
                 print('-> Done!\n')
             if args.depth_seg:
                 print('Generating binary depth segmentation...')
-                showBinarySegmentationDepth(image_path)
+                showBinarySegmentationDepth(image_path, output_path+'/'+filename.split('.')[0]+'_depth.png' if output_path else None)
                 print('-> Done!\n')
             if args.SAM:
                 print('Generating SAM result...')
                 masks = segmentationSAM(img)
-                showSAM(img,masks)
+                showSAM(img,masks,output_path+'/'+filename.split('.')[0]+'_SAM.png' if output_path else None)
                 print('-> Done!\n')
 
             print('Generating binary and object segmentation...')

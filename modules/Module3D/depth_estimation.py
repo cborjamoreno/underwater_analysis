@@ -99,7 +99,7 @@ def estimate(image_path):
         
         return depth[0,0].squeeze().cpu().numpy()
 
-def showColorMap(depth, image_path):
+def showColorMap(depth, image_path, output_path=None):
     """ Function to show the colormapped depth image
 
     Parameters
@@ -112,7 +112,7 @@ def showColorMap(depth, image_path):
     
     vmax = np.percentile(depth, 95)
     normalizer = mpl.colors.Normalize(vmin=depth.min(), vmax=vmax)
-    mapper = cm.ScalarMappable(norm=normalizer, cmap='jet')
+    mapper = cm.ScalarMappable(norm=normalizer, cmap='jet_r')
     colormapped_im = (mapper.to_rgba(depth)[:, :, :3] * 255).astype(np.uint8)
     print('Press any key to close')
 
@@ -122,8 +122,6 @@ def showColorMap(depth, image_path):
     # Resize colormap
     colormapped_im_resized = cv2.resize(colormapped_im, (ncols,nrows), interpolation = cv2.INTER_AREA)
 
-    colormapped_im_resized = cv2.cvtColor(colormapped_im_resized, cv2.COLOR_BGR2RGB)
-
     cmap = mpl.cm.jet_r
     norm = mpl.colors.Normalize(vmin=np.amin(depth[:,2]), vmax=np.amax(depth[:,2]))
 
@@ -131,4 +129,8 @@ def showColorMap(depth, image_path):
     plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),label='depth estimation value')
     plt.grid(False)
     plt.axis('off')
+    if output_path:
+        plt.savefig(output_path)
     plt.show()
+
+        

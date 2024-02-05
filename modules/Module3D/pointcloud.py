@@ -141,7 +141,7 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True, img
 
 
 
-def showOverheadReproyection(image_path, depth):
+def showOverheadReproyection(image_path, depth, output_path=None):
     """Shows overhead reproyection of image_path using depth information 
 
     Parameters
@@ -206,3 +206,5 @@ def showOverheadReproyection(image_path, depth):
     cv2.imshow('final',cv2.cvtColor(reprojection_colored.astype(np.uint8), cv2.COLOR_BGR2RGB))
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+    cv2.imwrite(output_path, cv2.cvtColor(reprojection_colored.astype(np.uint8), cv2.COLOR_BGR2RGB))

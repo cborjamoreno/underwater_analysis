@@ -19,7 +19,7 @@ from modules.Module3D.depth_estimation import estimate
 LIGHT_PURPLE = (213, 184, 255)
 DARK_BLUE = (1, 1, 122)
 
-def showSAM(img, masks):
+def showSAM(img, masks, output_path=None):
     """Show SAM segmentation over original image
 
     Parameters
@@ -50,6 +50,8 @@ def showSAM(img, masks):
         ax.imshow(np.dstack((img, m*0.5)))
 
     plt.axis('off')
+    if output_path:
+        plt.savefig(output_path)
     plt.show()
 
 
@@ -81,7 +83,7 @@ def binarySegmentationDepth(depth):
     
     return img
 
-def showBinarySegmentationDepth(image_path):
+def showBinarySegmentationDepth(image_path, output_path=None):
     """Show waterbody segmentation using depth estimation
 
     Parameters
@@ -128,6 +130,8 @@ def showBinarySegmentationDepth(image_path):
     plt.grid(False)
     plt.axis('off')
     plt.legend(handles,labels)
+    if output_path:
+        plt.savefig(output_path)
     plt.show()
     
     return mask_resized
@@ -436,7 +440,10 @@ def segmentationSAM(img):
             - crop_box : the crop of the image used to generate this mask in XYWH format
     """
 
+    device = "cuda"
+
     sam = sam_model_registry["vit_b"](checkpoint="modules/vit_b.pth")
+    sam.to(device=device)
     mask_generator = SamAutomaticMaskGenerator(
         model=sam,
         points_per_side=32
@@ -523,7 +530,7 @@ def binarySegmentationSuperpixels(img):
 
     return output
 
-def showBinarySegmentationSuperpixels(image_path):
+def showBinarySegmentationSuperpixels(image_path, output_path=None):
     """Shows binary segmentation based on HSV range colors using superpixels
 
     Parameters
@@ -562,6 +569,8 @@ def showBinarySegmentationSuperpixels(image_path):
     plt.grid(False)
     plt.axis('off')
     plt.legend(handles,labels)
+    if output_path:
+        plt.savefig(output_path)
     plt.show()
 
     return mask

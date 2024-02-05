@@ -47,6 +47,8 @@ def parse_args():
     return parser.parse_args()
 
 def main(args):
+
+    start_time = time.time()
     image_path = args.path
     img = cv2.imread(image_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -99,6 +101,8 @@ def main(args):
         print('Precision =',TP/(TP+FP))
         print('Recall =',TP/(TP+FN))
         print('-> Done!\n')
+
+    print('Execution time:',time.time()-start_time)
 
 if __name__ == "__main__":
     args = parse_args()
