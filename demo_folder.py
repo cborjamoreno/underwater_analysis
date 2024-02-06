@@ -50,7 +50,7 @@ def parse_args():
 
 def main(args):
     directory_path = args.path
-    if not args.pointcloud:
+    if args.pointcloud == []:
         args.pointcloud = ['x', '0']
     for filename in os.listdir(directory_path):
         #check if the file d_r_47_.jpg is in the directory

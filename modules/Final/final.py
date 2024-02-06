@@ -360,6 +360,7 @@ def segmentationFinal(image_path,coloring):
         thresh = thresh.astype('uint8')
         binary_mask = thresh.copy()
         color_mask = None
+    print('final')
     showFinalSegmentation(binary_mask,color_mask)
 
     if coloring == 'FLOATING':
