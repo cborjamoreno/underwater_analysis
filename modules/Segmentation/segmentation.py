@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import time
 from sklearn.cluster import DBSCAN
+from PIL import Image
 
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 from modules.Module3D.depth_estimation import estimate
@@ -101,8 +102,6 @@ def showBinarySegmentationDepth(image_path, output_path=None):
     img = cv2.imread(image_path)
     nrows,ncols,_ = img.shape
 
-    start = time.time()
-
     # Estimate depth for image
     points = estimate(image_path)
 
@@ -111,8 +110,6 @@ def showBinarySegmentationDepth(image_path, output_path=None):
     # Resize mask
     mask_resized = cv2.resize(mask, (ncols,nrows), interpolation = cv2.INTER_AREA)
 
-    end = time.time()
-    print('Execution time:',end-start)
 
     plt.imshow(mask_resized)
 
@@ -133,6 +130,7 @@ def showBinarySegmentationDepth(image_path, output_path=None):
     if output_path:
         plt.savefig(output_path)
     plt.show()
+    plt.close()
     
     return mask_resized
 
@@ -267,43 +265,6 @@ def floatingSegmentation2(binary_mask):
             else:
                 cv2.drawContours(result, [contours_list[i]], 0, (0,128,90), thickness=cv2.FILLED)
 
-    # Black background
-    
-    # aux = np.zeros((binary_mask.shape[0],binary_mask.shape[1],3), dtype=np.uint8)
-
-    #plot lines[6] in aux
-    # cv2.drawContours(aux, [contours_list[0]], 0, (0,128,90), -1)
-    # cv2.imshow('Contours', aux)
-    # cv2.waitKey(0)
-    # cv2.drawContours(aux, [lines[0]], 0, (0,128,90), -1)
-    # cv2.imshow('Contours', aux)
-    # cv2.waitKey(0)
-    # contour_with_line = np.concatenate((contours_list[0], lines[0]), axis=0)
-    # cv2.drawContours(aux, [contour_with_line], 0, (0,128,90), -1)
-    # cv2.imshow('Contours', aux)
-    # cv2.waitKey(0)
-
-
-    # show first contour
-    # cv2.drawContours(aux, [contours_list[5]], 0, (0,128,90), -1)
-    # cv2.imshow('Contours', aux)
-    # cv2.waitKey(0)
-    # contour_with_line = np.concatenate((contours_list[6], lines[6]), axis=0)
-    # cv2.drawContours(aux, [contour_with_line], 0, (0,128,90), -1)
-    # cv2.imshow('Contours', aux)
-    # cv2.waitKey(0)
-    # cv2.drawContours(aux, [contours_list[7]], 0, (0,128,90), -1)
-    # cv2.imshow('Contours', aux)
-    # cv2.waitKey(0)
-
-    # for i in range(len(contours_list)):
-    #     cv2.drawContours(aux, [contours_list[i]], 0, (0,128,90), -1)
-    #     cv2.imshow('Contours', aux)
-    #     cv2.waitKey(0)
-    #     cv2.destroyAllWindows()
-    
-    # print(contours_list[6])
-                
     cv2.imshow('Contours', result)
             
     return result
@@ -442,7 +403,7 @@ def segmentationSAM(img):
 
     device = "cuda"
 
-    sam = sam_model_registry["vit_b"](checkpoint="modules/vit_b.pth")
+    sam = sam_model_registry["vit_h"](checkpoint="modules/vit_h.pth")
     sam.to(device=device)
     mask_generator = SamAutomaticMaskGenerator(
         model=sam,
@@ -546,12 +507,8 @@ def showBinarySegmentationSuperpixels(image_path, output_path=None):
 
     # Read image path
     img = cv2.imread(image_path)
-    start = time.time()
     mask = binarySegmentationSuperpixels(img)
     mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
-    end = time.time()
-
-    print('Execution time:',end-start)
 
     plt.imshow(mask)
 
@@ -571,7 +528,8 @@ def showBinarySegmentationSuperpixels(image_path, output_path=None):
     plt.legend(handles,labels)
     if output_path:
         plt.savefig(output_path)
-    plt.show()
+    plt.show(block=False)
+    plt.close('all')
 
     return mask
 
@@ -601,8 +559,12 @@ def evaluate(eval_path, mask):
     """
 
     # Load evaluation mask
-    eval_mask = cv2.imread(eval_path)
-    eval_mask = cv2.cvtColor(eval_mask, cv2.COLOR_BGR2RGB)
+    # if eval_path is .bmp
+    if eval_path.endswith(".bmp"):
+        eval_mask = np.array(Image.open(eval_path))
+    else:
+        eval_mask = cv2.imread(eval_path)
+        eval_mask = cv2.cvtColor(eval_mask, cv2.COLOR_BGR2RGB)
 
     c = (0,0,0) # Black
     indices = np.where(np.all(eval_mask == c, axis=-1))

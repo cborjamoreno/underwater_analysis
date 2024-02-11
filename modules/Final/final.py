@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.patches import Rectangle
 import time
+import colorsys
 
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 from modules.Module3D.depth_estimation import estimate
@@ -12,6 +13,7 @@ from modules.Segmentation.segmentation import segmentationSAM, binarySegmentatio
 
 LIGHT_PURPLE = (213, 184, 255)
 DARK_BLUE = (1, 1, 122)
+GREEN = (0, 128, 90)
 
 def applyMask(mask, depth, coloring, img=None):
     """Apply segmentation mask to pointcloud
@@ -71,7 +73,7 @@ def applyMask(mask, depth, coloring, img=None):
     
     return point_array, colors
 
-def showPointcloudWithMask(depth, mask, coloring, img=None):
+def showPointcloudWithMask(depth, mask, coloring, img=None, output_path=None):
     """Shows pointcloud from depth points after apply the segmentation mask 'mask' to delete water points with the specify coloring type. 
 
     Parameters
@@ -143,23 +145,26 @@ def showPointcloudWithMask(depth, mask, coloring, img=None):
     fig.set_zlabel(" X ")
 
     fig.invert_zaxis()
-    plt.show()
+    if output_path:
+        plt.savefig(output_path)
+    plt.show(block=False)
+    plt.close('all')
 
-def showFinalSegmentation(binary_mask, color_mask=None):
-    """Shows both binary and object segmentation images.
+def showFinalSegmentation(three_mask, color_mask=None, output_paths=[]):
+    """Shows both two segmentation images.
 
     Parameters
     ----------
-    binary_mask : array_like, shape (nrows, ncols, 3)
-        Binary segmentation mask
+    three_mask : array_like, shape (nrows, ncols, 3)
+        Three class segmentation mask (water, scene, floating objects)
     color_mask : array_like, shape (nrows, ncols, 3), optional
         Object segmentation mask. If color_mask is None, object segmentation is not shown
 
     """
 
     # Resize mask
-    nrows, ncols,_ = binary_mask.shape
-    binaryMask_resized = cv2.resize(binary_mask, (ncols,nrows), interpolation = cv2.INTER_AREA)
+    nrows, ncols,_ = three_mask.shape
+    threeMask_resized = cv2.resize(three_mask, (ncols,nrows), interpolation = cv2.INTER_AREA)
 
 
 
@@ -172,7 +177,8 @@ def showFinalSegmentation(binary_mask, color_mask=None):
 
     legend_data = [
         [127,list(LIGHT_PURPLE),"water"],
-        [126,list(DARK_BLUE),"scene"]
+        [126,list(DARK_BLUE),"scene"],
+        [125,list(GREEN),"floating"]
     ]
     handles = [
         Rectangle((0,0),1,1, color = [v/255 for v in c]) for k,c,n in legend_data
@@ -180,39 +186,62 @@ def showFinalSegmentation(binary_mask, color_mask=None):
     labels = [n for k,c,n in legend_data]
 
 
-    # Plot segmentation
-    fig = plt.figure(figsize=plt.figaspect(0.5))
+    # # Plot segmentation
+    # fig = plt.figure(figsize=plt.figaspect(0.5))
         
-    # ===========================
-    # First subplot (binary mask)
-    # ===========================
-    # set up the axes for the first plot
-    ax = fig.add_subplot(1, ncols_plot, 1)
-    ax.set_title('Binary segmentation')
-    ax.imshow(binaryMask_resized)
+    # # ===========================
+    # # First subplot (binary mask with floating objects)
+    # # ===========================
+    # # set up the axes for the first plot
+    # ax = fig.add_subplot(1, ncols_plot, 1)
+    # ax.set_title('Three class segmentation')
+    # ax.imshow(threeMask_resized)
 
-    ax.grid(False)
-    ax.axis('off')
-    ax.legend(handles,labels)
+    # ax.grid(False)
+    # ax.axis('off')
+    # ax.legend(handles,labels)
+
+    # if color_mask is not None:
+
+    #     # ===========================
+    #     # Second subplot (color mask)
+    #     # ===========================
+    #     # set up the axes for the second plot
+    #     ax = fig.add_subplot(1, ncols_plot, 2)
+    #     ax.set_title('Object segmentation')
+    #     ax.imshow(colorMask_resized)
+
+    #     ax.grid(False)
+    #     ax.axis('off')
+    #     ax.legend([handles[0],handles[2]],[labels[0],labels[2]])
+    
+    # plt.show()
+
+    # First plot (binary mask with floating objects)
+    plt.figure(figsize=plt.figaspect(0.5))
+    plt.title('Three class segmentation')
+    plt.imshow(threeMask_resized)
+    plt.grid(False)
+    plt.axis('off')
+    plt.legend(handles,labels)
+    if len(output_paths) > 0:
+        plt.savefig(output_paths[0])
+    # plt.show()
 
     if color_mask is not None:
+        # Second plot (color mask)
+        plt.figure(figsize=plt.figaspect(0.5))
+        plt.title('Object segmentation')
+        plt.imshow(colorMask_resized)
+        plt.grid(False)
+        plt.axis('off')
+        plt.legend([handles[0],handles[2]],[labels[0],labels[2]])
+        if len(output_paths) > 1:
+            plt.savefig(output_paths[1])
+        plt.show(block=False)
+        plt.close('all')
 
-        # ===========================
-        # Second subplot (color mask)
-        # ===========================
-        # set up the axes for the second plot
-        ax = fig.add_subplot(1, ncols_plot, 2)
-        ax.set_title('Object segmentation')
-        ax.imshow(colorMask_resized)
-
-        ax.grid(False)
-        ax.axis('off')
-        ax.legend([handles[0]],[labels[0]])
-    
-    plt.show()
-
-
-def segmentationFinal(image_path,coloring):
+def segmentationFinal(image_path,coloring,output_paths=[]):
     """Get the segmentation combining SAM with depth estimation. If possible, the function returns an object segmentation
 
     Parameters
@@ -301,7 +330,7 @@ def segmentationFinal(image_path,coloring):
         if len(new_areas) == 0:
             print('Intersection over union is not good enough for any mask. Segmentation based on depth estimation will be used')
             end = time.time()
-            print('Execution time:',end-start)
+            print('Final segmentation execution time:',end-start)
             showFinalSegmentation(thresh)
 
             if coloring == 'FLOATING':
@@ -311,7 +340,7 @@ def segmentationFinal(image_path,coloring):
             else:
                 thresh = thresh.astype('uint8')
                 showPointcloudWithMask(depth,thresh,coloring,img)
-            return thresh, None
+            return thresh, floating_mask, None
         water_segment_index = np.argmax(np.array(new_areas))
         
         intersection, union = getIntersectAndUnion(merged, water_segment_index, thresh)
@@ -321,12 +350,21 @@ def segmentationFinal(image_path,coloring):
     color_mask = img.copy()
     binary_mask = img.copy()
     
-        
-    # Defining random colors
+
+    def generate_color():
+        while True:
+            # Generate a random color in HSV
+            h, s, v = np.random.random(), np.random.uniform(0.1, 0.5), np.random.uniform(0.7, 0.95)
+            # Convert the HSV color to RGB
+            color = [int(c * 255) for c in colorsys.hsv_to_rgb(h, s, v)]
+            # Check if the color is not green or light purple
+            if not (30 < h*360 < 200 or 220 < h*360 < 330):
+                return color
+
     colors = []
     for i in range(len(masks)):
         for j in range(3):
-            colors.append(list(np.random.choice(range(255),size=3)))
+            colors.append(generate_color())
     
     water = 0
 
@@ -343,31 +381,34 @@ def segmentationFinal(image_path,coloring):
 
     water_percent_SAM = water/(merged.shape[0]*merged.shape[1])
 
-    print(type(binary_mask[0,0,0]))
-    print(type(thresh[0,0,0]))
-
     success = True
     if water_percent_SAM/water_percent < 0.5:
         print('No se ha encontrado una máscara binaria mejor. Se utiliza la calculada a partir de la estimación de profundidad')
-        end = time.time()
-        print('Execution time:',end-start)
         success = False
     
     end = time.time()
-    print('Execution time:',end-start)
+    # print('Final segmentation execution time:',end-start)
 
     if success == False:
         thresh = thresh.astype('uint8')
         binary_mask = thresh.copy()
+        floating_mask = floatingSegmentation(binary_mask)
         color_mask = None
-    print('final')
-    showFinalSegmentation(binary_mask,color_mask)
+        showFinalSegmentation(binary_mask,color_mask,output_paths)
+    else:
+        floating_mask = floatingSegmentation(binary_mask)
+        # Paint as green the floating objects in color_mask
+        for i in range(merged.shape[0]):
+            for j in range(merged.shape[1]):
+                if floating_mask[i,j,:].tolist() == list(GREEN):
+                    color_mask[i,j] = GREEN
+        showFinalSegmentation(floating_mask,color_mask,output_paths)
 
     if coloring == 'FLOATING':
-        floating_mask = floatingSegmentation(binary_mask)
-        showPointcloudWithMask(depth,floating_mask,coloring,img)
+        showPointcloudWithMask(depth,floating_mask,coloring,img,output_paths[2])
     else:
-        showPointcloudWithMask(depth,binary_mask,coloring,img)
+        showPointcloudWithMask(depth,binary_mask,coloring,img,output_paths[2])
+
     
-    return binary_mask, color_mask
+    return binary_mask, floating_mask, color_mask
 
