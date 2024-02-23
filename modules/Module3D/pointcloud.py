@@ -86,22 +86,23 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True, img
         for y in range(0, ncols):
             point_array[i] = [x,y,depth[x,y]]
             i += 1
-            
+    
     if rotation_angle != 0:
         # Applying rotation
         point_array = rotatePoints(point_array, rotation_axis, rotation_angle, degrees)
         if rotation_axis == 'y':
             c=point_array[:, 0],
-            cmap="jet"
+            cmap="inferno"
         elif rotation_axis == 'x':
             c=point_array[:, 1],
-            cmap="jet"
+            cmap="inferno"
         else:
             c=point_array[:, 2],
-            cmap="jet_r"
+            cmap="inferno_r"
     else:
+        print('rotation_angle:', rotation_angle)
         c=point_array[:, 2],
-        cmap="jet_r"
+        cmap="inferno_r"
 
     if img is not None:
         img_resized = cv2.resize(img, (ncols,nrows), interpolation = cv2.INTER_AREA)
@@ -124,18 +125,18 @@ def showPointcloud(depth, rotation_axis='y', rotation_angle=0, degrees=True, img
             c=c,
             cmap=cmap
         )
-    fig.view_init(15,235)
+    fig.view_init(15,223)
 
     fig.set_xlabel(" Y ")
     fig.set_ylabel(" Z ")
     fig.set_zlabel(" X ")
 
     fig.invert_zaxis()
-    if img is None:
-        cmap = mpl.cm.jet_r
-        norm = mpl.colors.Normalize(vmin=np.amin(depth[:,2]), vmax=np.amax(depth[:,2]))
+    # if img is None:
+    #     cmap = mpl.cm.jet_r
+    #     norm = mpl.colors.Normalize(vmin=np.amin(depth[:,2]), vmax=np.amax(depth[:,2]))
 
-        plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),label='depth estimation value')
+    #     plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),label='depth estimation value')
 
     plt.show()
 

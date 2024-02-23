@@ -13,6 +13,8 @@ from matplotlib.patches import Rectangle
 import time
 from sklearn.cluster import DBSCAN
 from PIL import Image
+from scipy.ndimage import sobel
+from skimage import feature
 
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 from modules.Module3D.depth_estimation import estimate
@@ -57,7 +59,7 @@ def showSAM(img, masks, output_path=None):
 
 
 
-def binarySegmentationDepth(depth):
+def binarySegmentationDepth2(depth):
     """Get waterbody binary segmentation using depth estimation threshold
 
     Parameters
@@ -81,6 +83,52 @@ def binarySegmentationDepth(depth):
                 img[i,j] = LIGHT_PURPLE
             else:
                 img[i,j] = DARK_BLUE
+    
+    return img
+
+def binarySegmentationDepth(depth, threshold_multiplier=0.9):
+    """Get waterbody binary segmentation using a dynamically calculated threshold based on gradient magnitude
+
+    Parameters
+    ----------
+    depth : numpy array, shape (nrows, ncols)
+        Depth estimation
+    threshold_multiplier : float, optional
+        Multiplier for the threshold calculated based on the maximum depth (default is 0.9)
+
+    Returns
+    -------
+    img : array_like
+        Image with the waterbody binary segmentation
+    """
+
+    # # Compute gradient magnitude of depth image
+    # edges = feature.canny(depth)
+
+    # # Compute mean depth of edge pixels
+    # edge_depths = depth[edges]
+    # threshold = np.mean(edge_depths)
+
+    # # Create 3D arrays for the colors
+    # nrows, ncols = depth.shape
+    # LIGHT_PURPLE_3D = np.full((nrows, ncols, 3), LIGHT_PURPLE)
+    # DARK_BLUE_3D = np.full((nrows, ncols, 3), DARK_BLUE)
+
+    # # Color the water body
+    # img = np.where(depth[..., np.newaxis] > threshold, LIGHT_PURPLE_3D, DARK_BLUE_3D)
+    
+    # return img
+
+    # Set the threshold to be a certain percentage of the maximum depth value
+    threshold = threshold_multiplier * np.max(depth)
+
+    # Create 3D arrays for the colors
+    nrows, ncols = depth.shape
+    LIGHT_PURPLE_3D = np.full((nrows, ncols, 3), LIGHT_PURPLE)
+    DARK_BLUE_3D = np.full((nrows, ncols, 3), DARK_BLUE)
+
+    # Color the water body
+    img = np.where(depth[..., np.newaxis] > threshold, LIGHT_PURPLE_3D, DARK_BLUE_3D)
     
     return img
 
@@ -130,7 +178,7 @@ def showBinarySegmentationDepth(image_path, output_path=None):
     if output_path:
         plt.savefig(output_path)
     plt.show()
-    plt.close()
+    plt.close('all')
     
     return mask_resized
 

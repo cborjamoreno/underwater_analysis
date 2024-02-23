@@ -48,18 +48,26 @@ def parse_args():
     return parser.parse_args()
 
 def main(args):
-    directory_path = args.path
     if args.pointcloud == []:
         args.pointcloud = ['x', '0']
     
     if args.evalPath:
         algorithmsToEvaluate = [args.superpixels_seg, args.depth_seg, True]
-        pandas = [pd.DataFrame(columns=['Precision', 'Recall', 'Execution time']) for _ in range(3)]
+        algorithmsNames = ['superpixel', 'depth', 'depthSAM']
+        pandas = [pd.DataFrame(columns=['File', 'Precision', 'Recall', 'Execution time (s)']) for _ in range(3)]
         masks = [None, None, None]
         times = [0, 0, 0]
         eval_files = os.listdir(args.evalPath)
+
+    # if args.path is a directory, process all images in the directory:
+    if os.path.isdir(args.path):
+        filenames = os.listdir(args.path)
+        directory_path = args.path
+    else:
+        filenames = [args.path.split('/')[-1]]
+        directory_path = os.path.dirname(args.path)
             
-    for filename in os.listdir(directory_path):
+    for filename in filenames:
         if filename.endswith(".jpg") or filename.endswith(".png"):  # add more conditions if there are other image formats
             image_path = os.path.join(directory_path, filename)
             img = cv2.imread(image_path)
@@ -83,8 +91,10 @@ def main(args):
                     showColorMap(depth, image_path, output_path+'/'+filename.split('.')[0]+'colormap.png' if output_path else None)
                     print('-> Done!\n')
                 if args.pointcloud:
+                    # Convert degrees to float
+                    angle = float(args.pointcloud[1]) * np.pi / 180
                     print('Showing 3D pointcloud')
-                    showPointcloud(depth,rotation_axis=args.pointcloud[0],rotation_angle=args.pointcloud[1],degrees=True,img=img)
+                    showPointcloud(depth,rotation_axis=args.pointcloud[0],rotation_angle=angle,degrees=True)
                 if args.reprojection:
                     print('Showing overhead reproyection...')
                     print('Press any key to close the window.')
@@ -120,10 +130,10 @@ def main(args):
                 output_paths.append(output_path+'/'+filename.split('.')[0]+'pointcloud.png' if output_path else None)
                 
             times[2] = time.time()
-            print(image_path)
             binary_mask, three_mask, color_mask = segmentationFinal(image_path,args.pc_color,output_paths)
             masks[2] = binary_mask
             times[2] = time.time() - times[2]
+
             print('-> Done!\n')
 
             if args.evalPath:
@@ -135,24 +145,38 @@ def main(args):
                 eval_file = eval_files[eval_files.index(filename.split('.')[0]+'.bmp')]
                 eval_path = os.path.join(args.evalPath, eval_file)
 
-                for i in range(3):
-                    if algorithmsToEvaluate[i]:
+                # print('masks:', masks)
+
+                for i, eval in enumerate(algorithmsToEvaluate):
+                    if eval:
                         TP, FP, TN, FN = evaluate(eval_path, masks[i])
-                        pandas[i].loc[0] = [TP/(TP+FP), TP/(TP+FN), times[i]]
+                        prec = round(TP/(TP+FP), 2) if TP else 0
+                        rec = round(TP/(TP+FN), 2) if TP else 0
+                        new_row = pd.DataFrame([[filename, prec, rec, round(times[i],2)]], columns=pandas[i].columns)
+                        pandas[i] = pd.concat([pandas[i], new_row], ignore_index=True)
 
-                # Save precision, recall and execution time of every image to a file with pandas
-                results = pd.DataFrame(columns=['Precision', 'Recall', 'Execution time'])
+                # # Save precision, recall and execution time of every image to a file with pandas
+                # results = pd.DataFrame(columns=['Precision', 'Recall', 'Execution time'])
 
-                results.to_csv('evaluation.csv', index=False)
+                # results.to_csv('evaluation.csv', index=False)
 
                 print('-> Done!\n')
 
                 print(f'Finished processing {filename}\n')
     
     if args.evalPath:
-        # Save pandas to files
-        for filename in ['superpixel', 'depth', 'depthSAM']:
-            pandas[i].to_csv('evaluation_'+filename+'.csv', index=False)
+        # Add mean values to pandas
+        for i, eval in enumerate(algorithmsToEvaluate):
+            if eval:
+                # Add mean row
+                mean = pd.DataFrame([['Mean', round(pandas[i]['Precision'].mean(), 2), round(pandas[i]['Recall'].mean(), 2), round(pandas[i]['Execution time (s)'].mean(), 2)]], columns=pandas[i].columns)
+                pandas[i] = pd.concat([pandas[i], mean], ignore_index=True)
+                # Add median row
+                median = pd.DataFrame([['Median', round(pandas[i]['Precision'].median(), 2), round(pandas[i]['Recall'].median(), 2), round(pandas[i]['Execution time (s)'].median(), 2)]], columns=pandas[i].columns)
+                pandas[i] = pd.concat([pandas[i], median], ignore_index=True)
+                # Save pandas to file
+                pandas[i].to_csv('evaluation_'+algorithmsNames[i]+'.csv', index=False)
+                
 
 if __name__ == "__main__":
     args = parse_args()

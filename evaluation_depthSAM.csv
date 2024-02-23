@@ -1,2 +1,4 @@
-Precision,Recall,Execution time
-0.979294153869838,0.9554833743264303,18.55122184753418
+File,Precision,Recall,Execution time (s)
+d_r_47_.jpg,0.98,0.98,56.14
+Mean,0.98,0.98,56.14
+Median,0.98,0.98,56.14

@@ -14,16 +14,23 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import torch
 import cv2
+import torch.nn.functional as F
+from torchvision.transforms import Compose
+from tqdm import tqdm
 
 from torchvision import transforms
 from modules.Module3D.monoUWNet import networks
 from modules.Module3D.monoUWNet.layers import disp_to_depth
 from modules.Module3D.monoUWNet.my_utils import *
 
+
+from modules.Module3D.depth_anything.dpt import DepthAnything
+from modules.Module3D.depth_anything.util.transform import Resize, NormalizeImage, PrepareForNet
+
 LIGHT_PURPLE = (213, 184, 255)
 DARK_BLUE = (1, 1, 122)
 
-def estimate(image_path):
+def estimate2(image_path):
     """ Function to estimate depth for a single image
 
     Parameters
@@ -112,7 +119,7 @@ def showColorMap(depth, image_path, output_path=None):
     
     vmax = np.percentile(depth, 95)
     normalizer = mpl.colors.Normalize(vmin=depth.min(), vmax=vmax)
-    mapper = cm.ScalarMappable(norm=normalizer, cmap='jet_r')
+    mapper = cm.ScalarMappable(norm=normalizer, cmap='inferno_r')
     colormapped_im = (mapper.to_rgba(depth)[:, :, :3] * 255).astype(np.uint8)
     print('Press any key to close')
 
@@ -121,6 +128,13 @@ def showColorMap(depth, image_path, output_path=None):
 
     # Resize colormap
     colormapped_im_resized = cv2.resize(colormapped_im, (ncols,nrows), interpolation = cv2.INTER_AREA)
+    
+    #save image
+    cv2.imwrite(output_path, cv2.cvtColor(colormapped_im_resized.astype(np.uint8), cv2.COLOR_BGR2RGB))
+
+    cv2.imshow('Colormap', colormapped_im_resized)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
     cmap = mpl.cm.jet_r
     norm = mpl.colors.Normalize(vmin=np.amin(depth[:,2]), vmax=np.amax(depth[:,2]))
@@ -133,4 +147,50 @@ def showColorMap(depth, image_path, output_path=None):
         plt.savefig(output_path)
     plt.show()
 
+def estimate(image_path):
+    DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+    
+    depth_anything = DepthAnything.from_pretrained('LiheYoung/depth_anything_{}14'.format('vitl')).to(DEVICE).eval()
+    
+    total_params = sum(param.numel() for param in depth_anything.parameters())
+    print('Total parameters: {:.2f}M'.format(total_params / 1e6))
+    
+    transform = Compose([
+        Resize(
+            width=518,
+            height=518,
+            resize_target=False,
+            keep_aspect_ratio=True,
+            ensure_multiple_of=14,
+            resize_method='lower_bound',
+            image_interpolation_method=cv2.INTER_CUBIC,
+        ),
+        NormalizeImage(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        PrepareForNet(),
+    ])
+
+    filenames = [image_path]
+
+    for filename in tqdm(filenames):
+        raw_image = cv2.imread(filename)
+        image = cv2.cvtColor(raw_image, cv2.COLOR_BGR2RGB) / 255.0
         
+        h, w = image.shape[:2]
+        
+        image = transform({'image': image})['image']
+        image = torch.from_numpy(image).unsqueeze(0).to(DEVICE)
+        
+        with torch.no_grad():
+            depth = depth_anything(image)
+        
+        depth = F.interpolate(depth[None], (h, w), mode='bilinear', align_corners=False)[0, 0]
+        depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
+        
+        depth = depth.cpu().numpy().astype(np.uint8)
+
+        # Invert the depth values
+        depth = abs(255 - depth)
+
+        depth = (depth - np.min(depth)) / (np.max(depth) - np.min(depth))
+
+        return depth

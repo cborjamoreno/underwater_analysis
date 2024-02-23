@@ -9,7 +9,7 @@ import colorsys
 
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 from modules.Module3D.depth_estimation import estimate
-from modules.Segmentation.segmentation import segmentationSAM, binarySegmentationDepth, floatingSegmentation
+from modules.Segmentation.segmentation import segmentationSAM, binarySegmentationDepth, floatingSegmentation, showBinarySegmentationDepth
 
 LIGHT_PURPLE = (213, 184, 255)
 DARK_BLUE = (1, 1, 122)
@@ -39,35 +39,39 @@ def applyMask(mask, depth, coloring, img=None):
 
     """
     nrows,ncols = depth.shape
-    
     points_mask = depth.copy()
     
     delete_counter = 0
     
     for i in range(nrows):
         for j in range(ncols):
-            if mask[i,j,:].tolist() == list(LIGHT_PURPLE):
-                points_mask[i,j] = 1
+            if mask[i,j,:].tolist() == list(LIGHT_PURPLE) or depth[i,j] > 0.99:
+                points_mask[i,j] = 255
                 delete_counter += 1
-                
+    
     useful = nrows*ncols - delete_counter
-                
     point_array = np.zeros(shape=(useful,3))
     colors = np.array(np.zeros(shape=(useful,3)))
+
+    print('Deleted',delete_counter,'water pixels')
+    print('Useful',useful,'pixels')
     
     i = 0
+    red = 0
     for x in range(nrows):
         for y in range(ncols):
-            if points_mask[x,y] < 0.9:
+            if points_mask[x,y] != 255:
                 point_array[i] = [x,y,points_mask[x,y]]
                 if coloring == 'FLOATING':
                     assert img is not None, "img can't be None if coloring = 'FLOATING"
                     if mask[x,y,:].tolist() == list((0,128,90)):
                         colors[i] = [val/255.0 for val in list((255,0,0))]
+                        red +=1
                     else:
                         colors[i] = [val/255.0 for val in list(img[x,y,:])]
                 i += 1
-    
+    print('i:',i)
+    print('red:',red)
     if coloring == 'DEPTH':
         colors = point_array[:, 2]
     
@@ -84,17 +88,19 @@ def showPointcloudWithMask(depth, mask, coloring, img=None, output_path=None):
         Floating segmentation mask
     coloring : str, {'OBJECTS', 'FLOATING', 'DEPTH'}
         Points coloring type.
-         - FLOATING: each point p is colored with RGB = (255, 0, 0) if p is part of floating objetc in mask or with the original color in img.
+         - FLOATING: each point p is colored with RGB = (255, 0, 0) if p is part of floating object in mask or with the original color in img.
          - DEPTH: each point (x,y,z) is colored with colormap 'jet_r' taking depth[x,y,z] value.
     img : array_like, shape (rows,cols,3), optional
         Original image. If coloring = 'FLOATING', img can't be None.
     
     """
 
+    #nomralize depth values
+    # depth = (depth - np.min(depth)) / (np.max(depth) - np.min(depth))
+
     assert mask is not None, "mask is empty, try to use another mask."
     if coloring == 'FLOATING':
         assert img is not None, "img can't be None if coloring = 'FLOATING"
-    
 
     # Resize mask
     nrows,ncols = depth.shape
@@ -114,9 +120,7 @@ def showPointcloudWithMask(depth, mask, coloring, img=None, output_path=None):
             pc_mask[:, 2],
             pc_mask[:, 0],
             s=0.03,
-            c=colors,
-            vmin=np.amin(depth[:,2]),
-            vmax = np.amax(depth[:,2])
+            c=colors
         )
     else:
         cmap="jet_r"
@@ -127,17 +131,17 @@ def showPointcloudWithMask(depth, mask, coloring, img=None, output_path=None):
             s=0.03,
             c=colors,
             cmap=cmap,
-            vmin=np.amin(depth[:,2]),
-            vmax = np.amax(depth[:,2])
+            vmin=np.amin(depth),
+            vmax = np.amax(depth)
         )
         cmap = mpl.cm.jet_r
-        norm = mpl.colors.Normalize(vmin=np.amin(depth[:,2]), vmax=np.amax(depth[:,2]))
+        norm = mpl.colors.Normalize(vmin=np.amin(depth), vmax=np.amax(depth))
 
         plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),label='depth estimation value')
-    fig.view_init(15,235)
+    fig.view_init(15,223)
 
     fig.set_xlim3d(0, ncols)
-    fig.set_ylim3d(np.amin(depth[:,2]), np.amax(depth[:,2]))
+    fig.set_ylim3d(np.amin(depth), np.amax(depth))
     fig.set_zlim3d(0, nrows)
 
     fig.set_xlabel(" Y ")
@@ -147,7 +151,7 @@ def showPointcloudWithMask(depth, mask, coloring, img=None, output_path=None):
     fig.invert_zaxis()
     if output_path:
         plt.savefig(output_path)
-    plt.show(block=False)
+    plt.show()
     plt.close('all')
 
 def showFinalSegmentation(three_mask, color_mask=None, output_paths=[]):
@@ -226,7 +230,8 @@ def showFinalSegmentation(three_mask, color_mask=None, output_paths=[]):
     plt.legend(handles,labels)
     if len(output_paths) > 0:
         plt.savefig(output_paths[0])
-    # plt.show()
+    plt.show(block=False)
+    plt.close('all')
 
     if color_mask is not None:
         # Second plot (color mask)
@@ -291,6 +296,7 @@ def segmentationFinal(image_path,coloring,output_paths=[]):
 
     # Segmentation with depth
     thresh = binarySegmentationDepth(depth)
+    showBinarySegmentationDepth(image_path,output_paths[0])
     thresh = cv2.resize(thresh, (ncols_img,nrows_img), interpolation = cv2.INTER_LINEAR_EXACT)
     
     
@@ -324,22 +330,24 @@ def segmentationFinal(image_path,coloring,output_paths=[]):
     intersection, union = getIntersectAndUnion(merged, water_segment_index, thresh)
     
     # Check if selected water segment has a good "intersect over union" value
-    while (intersection/union) < 0.5:
+    while (intersection/union) < 0.7:
         # "Intersect over union" value is not good enough. Search for another water segment
         del new_areas[water_segment_index]
         if len(new_areas) == 0:
             print('Intersection over union is not good enough for any mask. Segmentation based on depth estimation will be used')
             end = time.time()
             print('Final segmentation execution time:',end-start)
-            showFinalSegmentation(thresh)
 
             if coloring == 'FLOATING':
                 thresh = thresh.astype('uint8')
                 floating_mask = floatingSegmentation(thresh)
                 showPointcloudWithMask(depth,floating_mask,coloring,img)
+                showFinalSegmentation(floating_mask)
             else:
                 thresh = thresh.astype('uint8')
+                floating_mask = thresh
                 showPointcloudWithMask(depth,thresh,coloring,img)
+                showFinalSegmentation(floating_mask)
             return thresh, floating_mask, None
         water_segment_index = np.argmax(np.array(new_areas))
         
@@ -382,7 +390,7 @@ def segmentationFinal(image_path,coloring,output_paths=[]):
     water_percent_SAM = water/(merged.shape[0]*merged.shape[1])
 
     success = True
-    if water_percent_SAM/water_percent < 0.5:
+    if water_percent_SAM/water_percent < 0.7:
         print('No se ha encontrado una máscara binaria mejor. Se utiliza la calculada a partir de la estimación de profundidad')
         success = False
     
@@ -394,7 +402,7 @@ def segmentationFinal(image_path,coloring,output_paths=[]):
         binary_mask = thresh.copy()
         floating_mask = floatingSegmentation(binary_mask)
         color_mask = None
-        showFinalSegmentation(binary_mask,color_mask,output_paths)
+        showFinalSegmentation(floating_mask,color_mask,output_paths)
     else:
         floating_mask = floatingSegmentation(binary_mask)
         # Paint as green the floating objects in color_mask
