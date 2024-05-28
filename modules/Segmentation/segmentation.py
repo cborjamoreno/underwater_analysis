@@ -57,35 +57,6 @@ def showSAM(img, masks, output_path=None):
         plt.savefig(output_path)
     plt.show()
 
-
-
-def binarySegmentationDepth2(depth):
-    """Get waterbody binary segmentation using depth estimation threshold
-
-    Parameters
-    ----------
-    depth : numpy array, shape (nrows,ncols)
-        Depth estimation
-
-    Returns
-    -------
-    img : array_like,
-        Image with the waterbody binary segmentation
-
-    """
-    nrows,ncols = depth.shape
-    
-    img = np.zeros((nrows,ncols,3), dtype=np.int32)
-    
-    for i in range(nrows):
-        for j in range(ncols):
-            if depth[i,j] > 0.55:
-                img[i,j] = LIGHT_PURPLE
-            else:
-                img[i,j] = DARK_BLUE
-    
-    return img
-
 def binarySegmentationDepth(depth, threshold_multiplier=0.8):
     """Get waterbody binary segmentation using a dynamically calculated threshold based on gradient magnitude
 
@@ -101,23 +72,6 @@ def binarySegmentationDepth(depth, threshold_multiplier=0.8):
     img : array_like
         Image with the waterbody binary segmentation
     """
-
-    # # Compute gradient magnitude of depth image
-    # edges = feature.canny(depth)
-
-    # # Compute mean depth of edge pixels
-    # edge_depths = depth[edges]
-    # threshold = np.mean(edge_depths)
-
-    # # Create 3D arrays for the colors
-    # nrows, ncols = depth.shape
-    # LIGHT_PURPLE_3D = np.full((nrows, ncols, 3), LIGHT_PURPLE)
-    # DARK_BLUE_3D = np.full((nrows, ncols, 3), DARK_BLUE)
-
-    # # Color the water body
-    # img = np.where(depth[..., np.newaxis] > threshold, LIGHT_PURPLE_3D, DARK_BLUE_3D)
-    
-    # return img
 
     # Set the threshold to be a certain percentage of the maximum depth value
     threshold = threshold_multiplier * np.max(depth)
@@ -181,141 +135,6 @@ def showBinarySegmentationDepth(image_path, output_path=None):
     plt.close('all')
     
     return mask_resized
-
-
-
-
-
-def floatingSegmentation2(binary_mask):
-    """Get floating objects segmentation
-
-    Parameters
-    ----------
-    binary_mask : array_like
-        Image with binary segmentation.
-
-    Returns
-    -------
-    img : array_like,
-        Image with the floating objects segmentation
-
-    """
-
-    def generate_line(start, end):
-        """Generate a line of points between two points.
-
-        Parameters
-        ----------
-        start : tuple
-            The start point of the line.
-        end : tuple
-            The end point of the line.
-
-        Returns
-        -------
-        line : list
-            The line of points.
-        """
-        # Bresenham's line algorithm
-        x0, y0 = start
-        x1, y1 = end
-        line = []
-        dx = abs(x1 - x0)
-        dy = abs(y1 - y0)
-        sx = 1 if x0 < x1 else -1
-        sy = 1 if y0 < y1 else -1
-        err = dx - dy
-
-        while True:
-            line.append((x0, y0))
-            if x0 == x1 and y0 == y1:
-                break
-            e2 = 2 * err
-            if e2 > -dy:
-                err -= dy
-                x0 += sx
-            if e2 < dx:
-                err += dx
-                y0 += sy
-
-        line = np.expand_dims(line, axis=1)
-
-        return line
-    
-    # Add a border to the image (top, left and right)
-
-    # Convert to gray scale
-    gray = cv2.cvtColor(binary_mask.astype(np.uint8), cv2.COLOR_RGB2GRAY)
-
-    # Find Canny edges
-    edged = cv2.Canny(gray, 30, 200)
-
-    # Taking a matrix of size 5 as the kernel
-    kernel = np.ones((2, 2), np.uint8)
-    edged = cv2.dilate(edged, kernel, iterations=1)
-    
-    # Finding Contours
-    contours, hierarchy = cv2.findContours(edged, 
-        cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    result = binary_mask.copy()
-
-    # Convert contours tuple to list
-    contours_list = [np.array(contour) for contour in contours]
-
-    tolerance = 5  # Adjust this value as needed
-    cluster_distance = 10  # Adjust this value as needed
-
-    epsilon = 0.1*cv2.arcLength(contours_list[0],True)
-    lines = {}
-
-    for i in range(len(contours_list)):
-        # Simplify contour
-        # contours_list[i] = cv2.approxPolyDP(contours_list[i], epsilon, True)
-
-        # Check if contour is close to the top, left or right border
-        boundary_points = []
-        for point in contours_list[i]:
-            if point[0][0] == 0 or point[0][1] == 0 or point[0][0] == binary_mask.shape[1]-1:
-                boundary_points.append(point[0])
-        if i == 0:
-            print('Boundary points:',boundary_points)
-
-        # Find the two nearest points on the boundary that have the largest gap between them
-        if len(boundary_points) > 0:
-            boundary_points.sort(key=lambda x: x[0])  # Sort points by x-coordinate
-            max_gap = 0
-            points_with_max_gap = (boundary_points[0], boundary_points[0])
-            for j in range(1, len(boundary_points)):
-                gap = np.linalg.norm(boundary_points[j] - boundary_points[j-1])
-                if gap > max_gap:
-                    max_gap = gap
-                    points_with_max_gap = (boundary_points[j-1], boundary_points[j])
-
-            # Generate a line between the points with the largest gap
-            line = generate_line(tuple(points_with_max_gap[0]), tuple(points_with_max_gap[1]))
-            lines[i] = line
-            if i == 0:
-                print('Contour0',contours_list[0])
-                print('Line',i,':',line)
-
-            hierarchy[0][i][2] = -1  # Mark contour as closed
-
-        # Check if contour is closed
-        if hierarchy[0][i][2] == -1:
-            # print('Contour',i,'is closed')
-            # Concatenate line with contour when drawing contour
-            if i in lines:
-                contour_with_line = np.concatenate((contours_list[i], lines[i]), axis=0)
-                if i == 0:
-                    print(contour_with_line)
-                cv2.drawContours(result, [contour_with_line], 0, (0,128,90), thickness=cv2.FILLED)
-            else:
-                cv2.drawContours(result, [contours_list[i]], 0, (0,128,90), thickness=cv2.FILLED)
-
-    cv2.imshow('Contours', result)
-            
-    return result
 
 def floatingSegmentation(binary_mask):
     """Get floating objects segmentation
@@ -387,7 +206,6 @@ def floatingSegmentation(binary_mask):
 
     return output
     
-
 def showFloatingSegmentation(binary_mask):
     """Show floating objects segmentation
 
@@ -427,8 +245,6 @@ def showFloatingSegmentation(binary_mask):
     
     return result
 
-
-
 def segmentationSAM(img):
     """Get the segmentation of an image with SAM
 
@@ -461,8 +277,6 @@ def segmentationSAM(img):
     masks = mask_generator.generate(img)
 
     return masks
-
-
 
 def binarySegmentationSuperpixels(img):
     """Get binary segmentation based on HSV range colors using superpixels
@@ -582,8 +396,6 @@ def showBinarySegmentationSuperpixels(image_path, output_path=None):
 
     return mask
 
-
-
 def evaluate(eval_path, mask):
     """Evaluate 'mask' with mask located in 'eval_path'. The function calculates TP, FP, TN, FN. Water pixels must be labeled as RGB (0,0,0) in mask located in 'eval_path'.
 
@@ -640,4 +452,3 @@ def evaluate(eval_path, mask):
             FP +=1
     
     return TP, FP, TN, FN
-
