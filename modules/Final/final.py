@@ -151,10 +151,10 @@ def showPointcloudWithMask(depth, mask, coloring, img=None, output_path=None):
     fig.invert_zaxis()
     if output_path:
         plt.savefig(output_path)
-    plt.show()
+    plt.show(block=False)
     plt.close('all')
 
-def showFinalSegmentation(three_mask, color_mask=None, output_paths=[]):
+def showFinalSegmentation(three_mask, color_mask=None, output_paths=[None, None, None]):
     """Shows both two segmentation images.
 
     Parameters
@@ -227,10 +227,10 @@ def showFinalSegmentation(three_mask, color_mask=None, output_paths=[]):
     plt.imshow(threeMask_resized)
     plt.grid(False)
     plt.axis('off')
-    plt.legend(handles,labels)
-    if len(output_paths) > 0:
+    # plt.legend(handles,labels)
+    if output_paths[0] is not None:
         plt.savefig(output_paths[0])
-    plt.show(block=False)
+    plt.show()
     plt.close('all')
 
     if color_mask is not None:
@@ -240,13 +240,13 @@ def showFinalSegmentation(three_mask, color_mask=None, output_paths=[]):
         plt.imshow(colorMask_resized)
         plt.grid(False)
         plt.axis('off')
-        plt.legend([handles[0],handles[2]],[labels[0],labels[2]])
-        if len(output_paths) > 1:
+        # plt.legend([handles[0],handles[2]],[labels[0],labels[2]])
+        if output_paths[1] is not None:
             plt.savefig(output_paths[1])
-        plt.show(block=False)
+        plt.show()
         plt.close('all')
 
-def segmentationFinal(image_path,coloring,output_paths=[]):
+def segmentationFinal(image_path,coloring,output_paths=[None,None,None]):
     """Get the segmentation combining SAM with depth estimation. If possible, the function returns an object segmentation
 
     Parameters
@@ -410,6 +410,7 @@ def segmentationFinal(image_path,coloring,output_paths=[]):
             for j in range(merged.shape[1]):
                 if floating_mask[i,j,:].tolist() == list(GREEN):
                     color_mask[i,j] = GREEN
+
         showFinalSegmentation(floating_mask,color_mask,output_paths)
 
     if coloring == 'FLOATING':

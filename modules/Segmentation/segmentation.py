@@ -86,7 +86,7 @@ def binarySegmentationDepth2(depth):
     
     return img
 
-def binarySegmentationDepth(depth, threshold_multiplier=0.9):
+def binarySegmentationDepth(depth, threshold_multiplier=0.8):
     """Get waterbody binary segmentation using a dynamically calculated threshold based on gradient magnitude
 
     Parameters
@@ -174,10 +174,10 @@ def showBinarySegmentationDepth(image_path, output_path=None):
     # Show image
     plt.grid(False)
     plt.axis('off')
-    plt.legend(handles,labels)
+    # plt.legend(handles,labels)
     if output_path:
         plt.savefig(output_path)
-    plt.show()
+    plt.show(block=False)
     plt.close('all')
     
     return mask_resized
@@ -380,6 +380,7 @@ def floatingSegmentation(binary_mask):
             mask = (analysis[1] == i).astype("uint8")
             # Apply the mask to the appropriate channels
             output[mask == 1] = (0, 128, 90)
+            # output[mask == 1] = DARK_BLUE
 
     # cv2.imshow("Filtered Components", output) 
     # cv2.waitKey(0)
@@ -420,7 +421,7 @@ def showFloatingSegmentation(binary_mask):
     # Show image
     plt.grid(False)
     plt.axis('off')
-    plt.legend(handles,labels)
+    # plt.legend(handles,labels)
     plt.show()
 
     
@@ -573,7 +574,7 @@ def showBinarySegmentationSuperpixels(image_path, output_path=None):
     # Show image
     plt.grid(False)
     plt.axis('off')
-    plt.legend(handles,labels)
+    # plt.legend(handles,labels)
     if output_path:
         plt.savefig(output_path)
     plt.show(block=False)
